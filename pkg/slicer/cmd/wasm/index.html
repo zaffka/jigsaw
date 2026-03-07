@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slicer WASM Demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; }
+  .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 1rem 0; }
+  select, button, input { font-size: 1rem; padding: 0.4rem 0.8rem; }
+  #status { color: #666; margin: 0.5rem 0; }
+  #result { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  #result img { border: 1px solid #eee; background: repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50%/16px 16px; }
+  #silhouette-container { margin-top: 1rem; }
+  #silhouette-container svg { max-width: 100%; border: 1px solid #ddd; }
+</style>
+</head>
+<body>
+
+<h1>Slicer WASM Demo</h1>
+
+<div class="controls">
+  <input type="file" id="file" accept="image/jpeg,image/png">
+  <select id="mode">
+    <option value="grid">Grid</option>
+    <option value="merge">Merge</option>
+    <option value="triangles">Triangles</option>
+    <option value="diamonds">Diamonds</option>
+    <option value="trapezoids">Trapezoids</option>
+    <option value="parallelograms">Parallelograms</option>
+    <option value="mixed">Mixed</option>
+    <option value="puzzle" selected>Puzzle</option>
+  </select>
+  <label>Cols: <input type="number" id="cols" value="3" min="2" max="10" style="width:3rem"></label>
+  <label>Rows: <input type="number" id="rows" value="3" min="2" max="10" style="width:3rem"></label>
+  <button id="run" disabled>Slice</button>
+</div>
+
+<div id="status">Loading WASM...</div>
+<div id="silhouette-container"></div>
+<div id="result"></div>
+
+<script src="wasm_exec.js"></script>
+<script>
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("slicer.wasm"), go.importObject).then(result => {
+  go.run(result.instance);
+  document.getElementById("status").textContent = "WASM loaded. Select an image.";
+  document.getElementById("run").disabled = false;
+});
+
+let imageBytes = null;
+
+document.getElementById("file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  imageBytes = new Uint8Array(await file.arrayBuffer());
+  document.getElementById("status").textContent = `Image loaded: ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+});
+
+document.getElementById("run").addEventListener("click", () => {
+  if (!imageBytes) {
+    document.getElementById("status").textContent = "Select an image first.";
+    return;
+  }
+
+  const mode = document.getElementById("mode").value;
+  const cols = parseInt(document.getElementById("cols").value);
+  const rows = parseInt(document.getElementById("rows").value);
+
+  document.getElementById("status").textContent = "Slicing...";
+  const t0 = performance.now();
+
+  let res;
+  switch (mode) {
+    case "grid":
+      res = slicer.grid(imageBytes, cols, rows);
+      break;
+    case "merge":
+      res = slicer.merge(imageBytes, cols, rows, 42);
+      break;
+    case "puzzle":
+      res = slicer.puzzle(imageBytes, cols, rows);
+      break;
+    default:
+      // geometry shapes
+      res = slicer.geometry(imageBytes, cols, rows, mode);
+      break;
+  }
+
+  const elapsed = (performance.now() - t0).toFixed(0);
+
+  if (res.error) {
+    document.getElementById("status").textContent = `Error: ${res.error}`;
+    return;
+  }
+
+  const pieces = JSON.parse(res.data);
+  document.getElementById("status").textContent =
+    `Done: ${pieces.length} pieces in ${elapsed}ms`;
+
+  // Show silhouette
+  const silRes = slicer.silhouette(imageBytes, cols, rows);
+  if (silRes.data) {
+    document.getElementById("silhouette-container").innerHTML = silRes.data;
+  }
+
+  // Show piece images
+  const container = document.getElementById("result");
+  container.innerHTML = "";
+  for (const p of pieces) {
+    const img = document.createElement("img");
+    img.src = "data:image/png;base64," + p.image_b64;
+    img.title = `#${p.id} (${p.col},${p.row}) ${p.bounds.w}x${p.bounds.h}`;
+    img.style.maxHeight = "150px";
+    container.appendChild(img);
+  }
+});
+</script>
+</body>
+</html>
