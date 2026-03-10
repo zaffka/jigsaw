@@ -12,8 +12,12 @@
   #status { color: #666; margin: 0.5rem 0; }
   #result { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
   #result img { border: 1px solid #eee; background: repeating-conic-gradient(#f0f0f0 0% 25%, white 0% 50%) 50%/16px 16px; }
-  #silhouette-container { margin-top: 1rem; }
-  #silhouette-container svg { max-width: 100%; border: 1px solid #ddd; }
+  #silhouette-container { margin-top: 1rem; position: relative; display: inline-block; }
+  #silhouette-container svg { display: block; border: 1px solid #ddd; }
+  #pieces-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  #pieces-overlay img { position: absolute; cursor: grab; z-index: 10; }
+  #pieces-overlay img.dragging { cursor: grabbing; z-index: 1000; }
+  #pieces-overlay img.placed { cursor: default; opacity: 0.9; z-index: 1; }
 </style>
 </head>
 <body>
@@ -59,7 +63,7 @@ document.getElementById("file").addEventListener("change", async (e) => {
   document.getElementById("status").textContent = `Image loaded: ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
 });
 
-document.getElementById("run").addEventListener("click", () => {
+document.getElementById("run").addEventListener("click", async () => {
   if (!imageBytes) {
     document.getElementById("status").textContent = "Select an image first.";
     return;
@@ -100,23 +104,125 @@ document.getElementById("run").addEventListener("click", () => {
   document.getElementById("status").textContent =
     `Done: ${pieces.length} pieces in ${elapsed}ms`;
 
-  // Show silhouette
-  const silRes = slicer.silhouette(imageBytes, cols, rows);
-  if (silRes.data) {
-    document.getElementById("silhouette-container").innerHTML = silRes.data;
-  }
+  // Decode source image to get its natural dimensions.
+  const blob = new Blob([imageBytes]);
+  const srcImg = new Image();
+  srcImg.src = URL.createObjectURL(blob);
+  await new Promise(r => { srcImg.onload = r; });
+  const srcW = srcImg.naturalWidth;
+  const srcH = srcImg.naturalHeight;
+  URL.revokeObjectURL(srcImg.src);
 
-  // Show piece images
-  const container = document.getElementById("result");
-  container.innerHTML = "";
+  // Build silhouette SVG from the actual sliced pieces (not hardcoded puzzle).
+  const silContainer = document.getElementById("silhouette-container");
+  const svgPaths = pieces.map(p =>
+    `  <path data-id="${p.id}" d="${p.svg_path}" fill="none" stroke="#cccccc" stroke-width="2"/>`
+  ).join("\n");
+  const silSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${srcW} ${srcH}">\n${svgPaths}\n</svg>`;
+
+  silContainer.innerHTML = silSVG;
+  const svg = silContainer.querySelector("svg");
+
+  // Fit SVG into the container (max 880px wide, preserve aspect ratio).
+  const maxW = Math.min(880, window.innerWidth - 40);
+  const aspectRatio = srcH / srcW;
+  const displayW = maxW;
+  const displayH = maxW * aspectRatio;
+  svg.setAttribute("width", displayW);
+  svg.setAttribute("height", displayH);
+
+  const scaleX = displayW / srcW;
+  const scaleY = displayH / srcH;
+
+  // Create overlay for draggable pieces.
+  const overlay = document.createElement("div");
+  overlay.id = "pieces-overlay";
+  silContainer.appendChild(overlay);
+
+  // Clear the old thumbnail result area.
+  document.getElementById("result").innerHTML = "";
+
+  // Place pieces at random positions in the tray area below the silhouette,
+  // then allow dragging them onto the grid.
+  const trayY = displayH + 20;
+  let trayX = 10;
+
   for (const p of pieces) {
     const img = document.createElement("img");
     img.src = "data:image/png;base64," + p.image_b64;
     img.title = `#${p.id} (${p.col},${p.row}) ${p.bounds.w}x${p.bounds.h}`;
-    img.style.maxHeight = "150px";
-    container.appendChild(img);
+
+    // Scale piece image to match the silhouette display size.
+    const pieceDisplayW = p.bounds.w * scaleX;
+    const pieceDisplayH = p.bounds.h * scaleY;
+    img.style.width = pieceDisplayW + "px";
+    img.style.height = pieceDisplayH + "px";
+
+    // Store target position (where this piece should snap to).
+    img.dataset.targetX = p.target_x * scaleX;
+    img.dataset.targetY = p.target_y * scaleY;
+    img.dataset.pieceId = p.id;
+
+    // Initial position: tray below silhouette.
+    img.style.left = trayX + "px";
+    img.style.top = trayY + "px";
+    trayX += pieceDisplayW + 8;
+    if (trayX + pieceDisplayW > displayW) {
+      trayX = 10;
+    }
+
+    overlay.appendChild(img);
+    makeDraggable(img, scaleX, scaleY);
   }
+
+  // Resize the container to fit the tray too.
+  silContainer.style.width = displayW + "px";
+  silContainer.style.minHeight = (trayY + 200) + "px";
 });
+
+const SNAP_THRESHOLD = 30;
+
+function makeDraggable(img, scaleX, scaleY) {
+  let startX, startY, origLeft, origTop;
+
+  img.addEventListener("pointerdown", (e) => {
+    if (img.classList.contains("placed")) return;
+    e.preventDefault();
+    img.setPointerCapture(e.pointerId);
+    img.classList.add("dragging");
+
+    startX = e.clientX;
+    startY = e.clientY;
+    origLeft = parseFloat(img.style.left);
+    origTop = parseFloat(img.style.top);
+  });
+
+  img.addEventListener("pointermove", (e) => {
+    if (!img.hasPointerCapture(e.pointerId)) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    img.style.left = (origLeft + dx) + "px";
+    img.style.top = (origTop + dy) + "px";
+  });
+
+  img.addEventListener("pointerup", (e) => {
+    if (!img.hasPointerCapture(e.pointerId)) return;
+    img.releasePointerCapture(e.pointerId);
+    img.classList.remove("dragging");
+
+    const curX = parseFloat(img.style.left);
+    const curY = parseFloat(img.style.top);
+    const targetX = parseFloat(img.dataset.targetX);
+    const targetY = parseFloat(img.dataset.targetY);
+
+    const dist = Math.sqrt((curX - targetX) ** 2 + (curY - targetY) ** 2);
+    if (dist < SNAP_THRESHOLD) {
+      img.style.left = targetX + "px";
+      img.style.top = targetY + "px";
+      img.classList.add("placed");
+    }
+  });
+}
 </script>
 </body>
 </html>
