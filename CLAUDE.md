@@ -1,48 +1,63 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Инструкции для Claude Code при работе с этим репозиторием.
 
-## Project Overview
+## Обзор проекта
 
-Jigsaw is a Go library (`pkg/slicer`) that cuts images into puzzle pieces for a children's educational web game. The backend computes all geometry server-side; a future frontend client receives piece metadata and PNG images for rendering.
+Jigsaw — онлайн-игра с разрезными картинками (пазлами) для детей с РАС. Бэкенд — Go (REST API). Фронтенд — Preact + Tailwind, раздаётся как статика через Traefik (отдельно от API). Подробная постановка задачи — `docs/PRODUCT.md`, план реализации — `docs/PLAN.md`.
 
-## Commands
+## Команды
 
 ```bash
-# Run all tests
+# Все тесты
 go test ./...
 
-# Run a single test
+# Один тест
 go test ./pkg/slicer -run TestDucksPuzzle
 
-# Run tests with verbose output (useful for seeing saved testdata paths)
+# Тесты с выводом (полезно для testdata)
 go test ./pkg/slicer -v
+
+# Docker-окружение
+docker compose -f .docker/base.yml up -d
 ```
 
-No build step — this is a library package with no `main`.
+## Архитектура
 
-## Architecture
+### Пакеты
 
-All code lives in a single package: `pkg/slicer`.
+| Пакет | Назначение |
+|-------|-----------|
+| `pkg/slicer` | Нарезка изображений на пазл-куски (4 режима: Grid, Merge, Geometry, Puzzle) |
+| `pkg/s3` | S3-клиент (SeaweedFS, AWS-совместимый) |
+| `pkg/pgx` | Пул соединений PostgreSQL (pgxpool) |
+| `pkg/logger` | Zap-логгер |
+| `pkg/di` | DI-контейнер (samber/do): логгер, БД, S3, HTTP-сервер |
+| `internal/migrate` | Миграции БД (golang-migrate + embed.FS) |
+| `web/` | Фронтенд (Preact + Tailwind + Vite), отдельный проект |
 
-**Four cutting modes**, each with its own opts struct and entry function:
-- `Grid(src, GridOpts)` — rectangular grid
-- `Merge(src, MergeOpts)` — merged cells forming rectangles and L-shapes
-- `Geometry(src, GeometryOpts)` — triangles, diamonds, trapezoids, parallelograms, mixed
-- `Puzzle(src, PuzzleOpts)` — jigsaw pieces with cubic Bezier tabs/blanks
+### Ключевые типы (`pkg/slicer`)
+- `Piece` — результат нарезки: `*image.RGBA`, `Path`, `Bounds`, `GridPos`
+- `Path` / `PathCmd` — векторный путь (MoveTo/LineTo/CubicTo/Close), экспорт в SVG
+- `Point` — float64 2D точка
 
-**Core types:**
-- `Piece` — output of every cutting mode: contains `*image.RGBA`, `Path` (outline), `Bounds`, `GridPos`
-- `Path` / `PathCmd` — vector path with MoveTo/LineTo/CubicTo/Close commands; can export to SVG string or flatten to polygon
-- `Point` — float64 2D point used throughout geometry calculations
+### Конвейер нарезки
+Каждый режим строит `Path` → `clipPiece()` → flatten → bounds → rasterize (ray-casting `pointInPolygon`).
 
-**Key pipeline:** each mode builds a `Path` outline per piece, then calls `clipPiece()` which flattens the path to a polygon, computes bounds, and rasterizes pixels inside the outline via ray-casting (`pointInPolygon`).
+### Экспорт (`export.go`)
+`ExportMeta`/`ExportMetaJSON` — JSON для клиента. `Silhouette` — SVG с контурами.
 
-**Export layer** (`export.go`): `ExportMeta`/`ExportMetaJSON` convert pieces to client-ready JSON; `Silhouette` generates an SVG document with all piece outlines.
+## Инфраструктура
 
-## Tests
+Docker-манифесты в `.docker/`:
+- `base.yml` — PostgreSQL 18, SeaweedFS, Traefik
+- `.postgres/init.sql` — инициализация БД
+- `.traefik/` — конфигурация обратного прокси
+- `seaweedfs/s3.json` — конфиг S3
 
-Tests use JPEG fixtures (`ducks.jpg`, `cosmic.jpg`) in `pkg/slicer/`. Image-based tests save PNG output to `pkg/slicer/testdata/` for visual inspection. Test helpers `loadJPEG` and `savePieces` are in `cosmic_test.go`.
+## Тесты
+
+JPEG-фикстуры (`ducks.jpg`, `cosmic.jpg`) в `pkg/slicer/`. Результаты сохраняются в `pkg/slicer/testdata/`. Хелперы `loadJPEG` и `savePieces` в `cosmic_test.go`.
 
 ## Языки
 

@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS play_results;
+DROP TABLE IF EXISTS catalog_puzzles;
+DROP TABLE IF EXISTS catalog_submissions;
+DROP TABLE IF EXISTS rewards;
+DROP TABLE IF EXISTS puzzle_pieces;
+DROP TABLE IF EXISTS puzzles;
+DROP TABLE IF EXISTS children;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
