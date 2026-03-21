@@ -36,7 +36,7 @@ services:
   # Web UI: http://localhost:8888/
   # S3 API: http://localhost:8333
   seaweedfs:
-    image: chrislusf/seaweedfs:latest
+    image: docker.io/chrislusf/seaweedfs:latest
     container_name: seaweedfs
     ports:
       - "9333:9333"   # Master server
@@ -45,7 +45,7 @@ services:
       - "8333:8333"   # S3 API endpoint
     command: 'server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data'
     volumes:
-      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - ./.seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.seaweedfs.rule=Host(`s3.domain.tld`)"

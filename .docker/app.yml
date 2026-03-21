@@ -1,0 +1,30 @@
+services:
+  jigsaw:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: jigsaw
+    ports:
+      - "8090:8080"
+    environment:
+      - PORT=8080
+      - DB_DSN=postgres://dev:dev@postgres:5432/jigsaw?sslmode=disable
+      - LOG_LEVEL=info
+      - LOG_FMT=console
+      - S3_ENDPOINT=seaweedfs:8333
+      - S3_ACCESS_KEY=dev
+      - S3_SECRET_KEY=dev
+      - S3_BUCKET_NAME=jigsaw
+      - S3_REGION=us-east-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
+    networks:
+      - default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jigsaw.rule=Host(`web.domain.tld`)"
+      - "traefik.http.routers.jigsaw.entrypoints=web"
+      - "traefik.http.services.jigsaw.loadbalancer.server.port=8080"
