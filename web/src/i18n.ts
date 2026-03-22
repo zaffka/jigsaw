@@ -20,6 +20,9 @@ export function detectLocale(): string {
   const lang = navigator.language || 'ru';
   if (lang.startsWith('ru')) return 'ru';
   if (lang.startsWith('en')) return 'en';
+  if (lang.startsWith('es')) return 'es';
+  if (lang.startsWith('zh')) return 'zh';
+  if (lang.startsWith('th')) return 'th';
   return 'ru';
 }
 

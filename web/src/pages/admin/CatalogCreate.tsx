@@ -2,13 +2,26 @@ import { useState } from 'preact/hooks';
 import { useLocation } from 'wouter';
 import { api } from '../../api';
 import { useT } from '../../i18n';
+import type { Locale } from '../../types';
+
+type PuzzleMode = 'grid' | 'merge' | 'geometry' | 'puzzle';
+
+const LOCALES: { value: Locale; label: string }[] = [
+  { value: 'ru', label: 'Русский' },
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' },
+  { value: 'zh', label: '中文' },
+  { value: 'th', label: 'ภาษาไทย' },
+];
 
 export function CatalogCreate() {
   const t = useT();
-  const [, setLocation] = useLocation();
-  const [titleRu, setTitleRu] = useState('');
-  const [titleEn, setTitleEn] = useState('');
-  const [config, setConfig] = useState('');
+  const [, navigate] = useLocation();
+  const [title, setTitle] = useState('');
+  const [locale, setLocale] = useState<Locale>('ru');
+  const [cols, setCols] = useState('4');
+  const [rows, setRows] = useState('3');
+  const [mode, setMode] = useState<PuzzleMode>('grid');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,14 +36,12 @@ export function CatalogCreate() {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('title_ru', titleRu);
-      formData.append('title_en', titleEn);
-      if (config.trim()) {
-        formData.append('config', config.trim());
-      }
+      formData.append('title', title);
+      formData.append('locale', locale);
+      formData.append('config', JSON.stringify({ mode, cols: +cols, rows: +rows }));
 
       await api.admin.catalog.create(formData);
-      setLocation('/admin/catalog');
+      navigate('/admin/catalog');
     } catch (_) {
       setError(t('common.error'));
     } finally {
@@ -55,53 +66,80 @@ export function CatalogCreate() {
             required
             onChange={(e) => {
               const f = (e.target as HTMLInputElement).files?.[0];
-              if (f && f.size <= 10 * 1024 * 1024) {
+              if (f) {
                 setFile(f);
                 setError('');
-              } else if (f) {
-                setError('Файл слишком большой (максимум 10MB)');
               }
             }}
-            class="w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+            class="w-full border rounded px-3 py-2 text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
           />
         </div>
 
         <div>
           <label class="mb-1 block text-sm font-medium text-gray-700">
-            {t('admin.catalog.form.titleRu')}
+            {t('admin.catalog.form.locale')}
+          </label>
+          <select
+            value={locale}
+            onChange={(e) => setLocale((e.target as HTMLSelectElement).value as Locale)}
+            class="border rounded px-3 py-2 w-full text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {LOCALES.map((l) => (
+              <option key={l.value} value={l.value}>{l.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">
+            {t('admin.catalog.form.title')}
           </label>
           <input
             type="text"
             required
-            value={titleRu}
-            onInput={(e) => setTitleRu((e.target as HTMLInputElement).value)}
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={title}
+            onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
+            class="border rounded px-3 py-2 w-full text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
-        <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">
-            {t('admin.catalog.form.titleEn')}
-          </label>
-          <input
-            type="text"
-            value={titleEn}
-            onInput={(e) => setTitleEn((e.target as HTMLInputElement).value)}
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+        <div class="flex gap-4">
+          <div class="flex-1">
+            <label class="mb-1 block text-sm font-medium text-gray-700">Колонки</label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={cols}
+              onInput={(e) => setCols((e.target as HTMLInputElement).value)}
+              class="border rounded px-3 py-2 w-full text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div class="flex-1">
+            <label class="mb-1 block text-sm font-medium text-gray-700">Строки</label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={rows}
+              onInput={(e) => setRows((e.target as HTMLInputElement).value)}
+              class="border rounded px-3 py-2 w-full text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-gray-700">
-            Config (JSON, необязательно)
-          </label>
-          <textarea
-            value={config}
-            onInput={(e) => setConfig((e.target as HTMLTextAreaElement).value)}
-            rows={4}
-            placeholder="{}"
-            class="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+          <label class="mb-1 block text-sm font-medium text-gray-700">Режим нарезки</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode((e.target as HTMLSelectElement).value as PuzzleMode)}
+            class="border rounded px-3 py-2 w-full text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="grid">Grid</option>
+            <option value="merge">Merge</option>
+            <option value="geometry">Geometry</option>
+            <option value="puzzle">Puzzle</option>
+          </select>
         </div>
 
         {error && <p class="text-sm text-red-600">{error}</p>}
@@ -116,7 +154,7 @@ export function CatalogCreate() {
           </button>
           <button
             type="button"
-            onClick={() => setLocation('/admin/catalog')}
+            onClick={() => navigate('/admin/catalog')}
             class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             {t('admin.catalog.form.cancel')}

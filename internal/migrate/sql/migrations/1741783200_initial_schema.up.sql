@@ -40,7 +40,8 @@ CREATE TABLE puzzles (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     child_id    UUID REFERENCES children(id) ON DELETE SET NULL,
-    titles      JSONB NOT NULL DEFAULT '{}',
+    title       TEXT NOT NULL DEFAULT '',
+    locale      TEXT NOT NULL DEFAULT 'ru' CHECK (locale IN ('ru', 'en', 'es', 'zh', 'th')),
     image_key   TEXT NOT NULL,
     status      TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'failed')),
     config      JSONB NOT NULL DEFAULT '{}',
@@ -64,13 +65,19 @@ CREATE TABLE puzzle_pieces (
 CREATE INDEX idx_puzzle_pieces_puzzle_id ON puzzle_pieces(puzzle_id);
 
 -- Rewards
+-- Components are independent and optional:
+--   video_key — S3 key for MP4 (null = no video)
+--   word      — reward word in the puzzle's locale (null = no word)
+--   tts_key   — S3 key for TTS audio (populated by generate_tts worker)
+--   animation — built-in animation name, always shown as fallback
 CREATE TABLE rewards (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     puzzle_id   UUID NOT NULL UNIQUE REFERENCES puzzles(id) ON DELETE CASCADE,
-    type        TEXT NOT NULL CHECK (type IN ('video', 'word', 'animation')),
-    content_key TEXT,
-    words       JSONB NOT NULL DEFAULT '{}',
-    tts_keys    JSONB NOT NULL DEFAULT '{}'
+    video_key   TEXT,
+    word        TEXT,
+    tts_key     TEXT,
+    animation   TEXT NOT NULL DEFAULT 'confetti',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Catalog submissions (moderation queue)

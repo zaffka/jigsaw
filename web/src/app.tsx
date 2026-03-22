@@ -7,6 +7,7 @@ import { CatalogCreate } from './pages/admin/CatalogCreate';
 import { CatalogEdit } from './pages/admin/CatalogEdit';
 import { UserList } from './pages/admin/UserList';
 import { CatalogPublic } from './pages/catalog/CatalogPublic';
+import { GameScreen } from './pages/game/GameScreen';
 
 export function App() {
   return (
@@ -41,6 +42,8 @@ export function App() {
         <Route path="/admin">
           <Redirect to="/admin/catalog" />
         </Route>
+
+        <Route path="/play/:id" component={GameScreen} />
 
         <Route path="/catalog" component={CatalogPublic} />
 

@@ -147,7 +147,8 @@ func (s *Store) DeleteSession(ctx context.Context, token string) error {
 type CatalogPuzzle struct {
 	ID        string
 	PuzzleID  string
-	Titles    map[string]string
+	Title     string
+	Locale    string
 	ImageKey  string
 	Status    string
 	Config    map[string]any
@@ -156,11 +157,7 @@ type CatalogPuzzle struct {
 	CreatedAt time.Time
 }
 
-func (s *Store) CreateCatalogPuzzle(ctx context.Context, adminUserID string, titles map[string]string, imageKey string, config map[string]any) (*CatalogPuzzle, error) {
-	titlesJSON, err := json.Marshal(titles)
-	if err != nil {
-		return nil, fmt.Errorf("marshal titles: %w", err)
-	}
+func (s *Store) CreateCatalogPuzzle(ctx context.Context, adminUserID, title, locale, imageKey string, config map[string]any) (*CatalogPuzzle, error) {
 	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return nil, fmt.Errorf("marshal config: %w", err)
@@ -174,10 +171,10 @@ func (s *Store) CreateCatalogPuzzle(ctx context.Context, adminUserID string, tit
 
 	var puzzleID string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO puzzles (user_id, titles, image_key, status, config)
-		VALUES ($1, $2, $3, 'processing', $4)
+		INSERT INTO puzzles (user_id, title, locale, image_key, status, config)
+		VALUES ($1, $2, $3, $4, 'processing', $5)
 		RETURNING id
-	`, adminUserID, titlesJSON, imageKey, configJSON).Scan(&puzzleID)
+	`, adminUserID, title, locale, imageKey, configJSON).Scan(&puzzleID)
 	if err != nil {
 		return nil, fmt.Errorf("create puzzle: %w", err)
 	}
@@ -203,61 +200,56 @@ func (s *Store) CreateCatalogPuzzle(ctx context.Context, adminUserID string, tit
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
-	cp.Titles = titles
+	cp.Title = title
+	cp.Locale = locale
 	cp.ImageKey = imageKey
 	cp.Status = "processing"
 	cp.Config = config
 	return &cp, nil
 }
 
+func scanCatalogPuzzle(row interface {
+	Scan(...any) error
+}) (*CatalogPuzzle, error) {
+	var cp CatalogPuzzle
+	var configRaw []byte
+	err := row.Scan(&cp.ID, &cp.PuzzleID, &cp.Title, &cp.Locale, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	json.Unmarshal(configRaw, &cp.Config)
+	return &cp, nil
+}
+
+const catalogPuzzleSelect = `
+	SELECT cp.id, cp.puzzle_id, p.title, p.locale, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at
+	FROM catalog_puzzles cp
+	JOIN puzzles p ON p.id = cp.puzzle_id`
+
 func (s *Store) ListCatalogPuzzles(ctx context.Context) ([]*CatalogPuzzle, error) {
-	rows, err := s.db.Query(ctx, `
-		SELECT cp.id, cp.puzzle_id, p.titles, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at
-		FROM catalog_puzzles cp
-		JOIN puzzles p ON p.id = cp.puzzle_id
-		ORDER BY cp.sort_order ASC, cp.created_at DESC
-	`)
+	rows, err := s.db.Query(ctx, catalogPuzzleSelect+`
+		ORDER BY cp.sort_order ASC, cp.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var list []*CatalogPuzzle
 	for rows.Next() {
-		var cp CatalogPuzzle
-		var titlesRaw, configRaw []byte
-		if err := rows.Scan(&cp.ID, &cp.PuzzleID, &titlesRaw, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt); err != nil {
+		cp, err := scanCatalogPuzzle(rows)
+		if err != nil {
 			return nil, err
 		}
-		json.Unmarshal(titlesRaw, &cp.Titles)
-		json.Unmarshal(configRaw, &cp.Config)
-		list = append(list, &cp)
+		list = append(list, cp)
 	}
 	return list, rows.Err()
 }
 
 func (s *Store) GetCatalogPuzzle(ctx context.Context, id string) (*CatalogPuzzle, error) {
-	var cp CatalogPuzzle
-	var titlesRaw, configRaw []byte
-	err := s.db.QueryRow(ctx, `
-		SELECT cp.id, cp.puzzle_id, p.titles, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at
-		FROM catalog_puzzles cp
-		JOIN puzzles p ON p.id = cp.puzzle_id
-		WHERE cp.id = $1
-	`, id).Scan(&cp.ID, &cp.PuzzleID, &titlesRaw, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	json.Unmarshal(titlesRaw, &cp.Titles)
-	json.Unmarshal(configRaw, &cp.Config)
-	return &cp, nil
+	return scanCatalogPuzzle(s.db.QueryRow(ctx,
+		catalogPuzzleSelect+` WHERE cp.id = $1`, id))
 }
 
-func (s *Store) UpdateCatalogPuzzle(ctx context.Context, id string, titles map[string]string, featured bool, sortOrder int) error {
-	titlesJSON, err := json.Marshal(titles)
-	if err != nil {
-		return fmt.Errorf("marshal titles: %w", err)
-	}
-
+func (s *Store) UpdateCatalogPuzzle(ctx context.Context, id, title string, featured bool, sortOrder int) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -272,10 +264,10 @@ func (s *Store) UpdateCatalogPuzzle(ctx context.Context, id string, titles map[s
 	}
 
 	_, err = tx.Exec(ctx, `
-		UPDATE puzzles SET titles = $2 WHERE id = (SELECT puzzle_id FROM catalog_puzzles WHERE id = $1)
-	`, id, titlesJSON)
+		UPDATE puzzles SET title = $2 WHERE id = (SELECT puzzle_id FROM catalog_puzzles WHERE id = $1)
+	`, id, title)
 	if err != nil {
-		return fmt.Errorf("update puzzles titles: %w", err)
+		return fmt.Errorf("update puzzle title: %w", err)
 	}
 
 	return tx.Commit(ctx)
@@ -288,28 +280,101 @@ func (s *Store) DeleteCatalogPuzzle(ctx context.Context, id string) error {
 	return err
 }
 
-func (s *Store) ListPublicCatalog(ctx context.Context) ([]*CatalogPuzzle, error) {
-	rows, err := s.db.Query(ctx, `
-		SELECT cp.id, cp.puzzle_id, p.titles, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at
-		FROM catalog_puzzles cp
-		JOIN puzzles p ON p.id = cp.puzzle_id
-		WHERE p.status = 'ready'
-		ORDER BY cp.featured DESC, cp.sort_order ASC, cp.created_at DESC
-	`)
+func (s *Store) ListPublicCatalog(ctx context.Context, locale string) ([]*CatalogPuzzle, error) {
+	rows, err := s.db.Query(ctx, catalogPuzzleSelect+`
+		WHERE p.status = 'ready' AND p.locale = $1
+		ORDER BY cp.featured DESC, cp.sort_order ASC, cp.created_at DESC`, locale)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var list []*CatalogPuzzle
 	for rows.Next() {
-		var cp CatalogPuzzle
-		var titlesRaw, configRaw []byte
-		if err := rows.Scan(&cp.ID, &cp.PuzzleID, &titlesRaw, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt); err != nil {
+		cp, err := scanCatalogPuzzle(rows)
+		if err != nil {
 			return nil, err
 		}
-		json.Unmarshal(titlesRaw, &cp.Titles)
-		json.Unmarshal(configRaw, &cp.Config)
-		list = append(list, &cp)
+		list = append(list, cp)
+	}
+	return list, rows.Err()
+}
+
+// --- Reward ---
+
+type Reward struct {
+	ID        string
+	PuzzleID  string
+	VideoKey  *string
+	Word      *string
+	TTSKey    *string
+	Animation string
+	CreatedAt time.Time
+}
+
+func (s *Store) UpsertReward(ctx context.Context, puzzleID string, videoKey, word *string, animation string) (*Reward, error) {
+	if animation == "" {
+		animation = "confetti"
+	}
+	var r Reward
+	err := s.db.QueryRow(ctx, `
+		INSERT INTO rewards (puzzle_id, video_key, word, animation)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (puzzle_id) DO UPDATE
+			SET video_key = EXCLUDED.video_key,
+			    word      = EXCLUDED.word,
+			    animation = EXCLUDED.animation
+		RETURNING id, puzzle_id, video_key, word, tts_key, animation, created_at
+	`, puzzleID, videoKey, word, animation).Scan(
+		&r.ID, &r.PuzzleID, &r.VideoKey, &r.Word, &r.TTSKey, &r.Animation, &r.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("upsert reward: %w", err)
+	}
+	return &r, nil
+}
+
+func (s *Store) GetRewardByPuzzleID(ctx context.Context, puzzleID string) (*Reward, error) {
+	var r Reward
+	err := s.db.QueryRow(ctx, `
+		SELECT id, puzzle_id, video_key, word, tts_key, animation, created_at
+		FROM rewards WHERE puzzle_id = $1
+	`, puzzleID).Scan(&r.ID, &r.PuzzleID, &r.VideoKey, &r.Word, &r.TTSKey, &r.Animation, &r.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// --- Puzzle pieces ---
+
+type PuzzlePiece struct {
+	ID       string
+	PuzzleID string
+	ImageKey string
+	PathSVG  string
+	GridX    int
+	GridY    int
+	Bounds   map[string]any
+}
+
+func (s *Store) GetPuzzlePieces(ctx context.Context, puzzleID string) ([]*PuzzlePiece, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, puzzle_id, image_key, path_svg, grid_x, grid_y, bounds
+		FROM puzzle_pieces WHERE puzzle_id = $1 ORDER BY grid_y, grid_x
+	`, puzzleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []*PuzzlePiece
+	for rows.Next() {
+		var p PuzzlePiece
+		var boundsRaw []byte
+		if err := rows.Scan(&p.ID, &p.PuzzleID, &p.ImageKey, &p.PathSVG, &p.GridX, &p.GridY, &boundsRaw); err != nil {
+			return nil, err
+		}
+		json.Unmarshal(boundsRaw, &p.Bounds)
+		list = append(list, &p)
 	}
 	return list, rows.Err()
 }

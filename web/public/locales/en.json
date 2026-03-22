@@ -16,8 +16,8 @@
         "failed": "Failed"
       },
       "form": {
-        "titleRu": "Title (Russian)",
-        "titleEn": "Title (English)",
+        "title": "Title",
+        "locale": "Language",
         "featured": "Featured",
         "sortOrder": "Sort Order",
         "image": "Image",

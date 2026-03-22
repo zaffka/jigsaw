@@ -100,6 +100,12 @@ func parseLocale(acceptLang string) string {
 	switch lang {
 	case "en":
 		return "en"
+	case "es":
+		return "es"
+	case "zh":
+		return "zh"
+	case "th":
+		return "th"
 	default:
 		return "ru"
 	}

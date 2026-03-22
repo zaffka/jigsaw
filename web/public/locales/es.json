@@ -1,0 +1,54 @@
+{
+  "login": {
+    "title": "Iniciar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "error": "Correo o contraseña incorrectos"
+  },
+  "admin": {
+    "catalog": {
+      "title": "Catálogo de puzzles",
+      "add": "Añadir puzzle",
+      "status": {
+        "processing": "Procesando",
+        "ready": "Listo",
+        "failed": "Error"
+      },
+      "form": {
+        "title": "Título",
+        "locale": "Idioma",
+        "featured": "Destacado",
+        "sortOrder": "Orden",
+        "image": "Imagen",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "upload": "Subir puzzle"
+      }
+    },
+    "users": {
+      "title": "Usuarios",
+      "email": "Correo",
+      "role": "Rol",
+      "locale": "Idioma",
+      "createdAt": "Fecha de registro"
+    },
+    "nav": {
+      "catalog": "Catálogo",
+      "users": "Usuarios"
+    }
+  },
+  "catalog": {
+    "title": "Catálogo",
+    "empty": "Aún no hay puzzles"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ocurrió un error",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "logout": "Cerrar sesión"
+  }
+}

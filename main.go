@@ -14,6 +14,7 @@ import (
 	"github.com/zaffka/jigsaw/internal/middleware"
 	"github.com/zaffka/jigsaw/internal/migrate"
 	"github.com/zaffka/jigsaw/internal/store"
+	"github.com/zaffka/jigsaw/internal/worker"
 	"github.com/zaffka/jigsaw/pkg/di"
 	"github.com/zaffka/jigsaw/pkg/s3"
 	"go.uber.org/zap"
@@ -90,6 +91,8 @@ func main() {
 	mux.HandleFunc("POST /api/auth/logout", h.HandleLogout)
 	mux.Handle("GET /api/auth/me", authChain(http.HandlerFunc(h.HandleMe)))
 
+	mux.HandleFunc("GET /api/media/{path...}", h.HandleMedia)
+
 	mux.Handle("GET /api/catalog", authMiddleware(http.HandlerFunc(h.HandleListCatalog)))
 	mux.Handle("GET /api/catalog/{id}", authMiddleware(http.HandlerFunc(h.HandleGetCatalogPuzzle)))
 
@@ -98,6 +101,8 @@ func main() {
 	mux.Handle("GET /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminGetCatalogPuzzle)))
 	mux.Handle("PUT /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminUpdateCatalogPuzzle)))
 	mux.Handle("DELETE /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCatalogPuzzle)))
+	mux.Handle("GET /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminGetReward)))
+	mux.Handle("POST /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminUpsertReward)))
 	mux.Handle("GET /api/admin/users", adminChain(http.HandlerFunc(h.HandleAdminListUsers)))
 
 	httpServer, err := do.Invoke[*http.Server](container)
@@ -112,6 +117,8 @@ func main() {
 			log.Error("http server error", zap.Error(err))
 		}
 	}()
+
+	go worker.New(st, s3Client, log).Run(ctx)
 
 	<-ctx.Done()
 	log.Info("shutting down")

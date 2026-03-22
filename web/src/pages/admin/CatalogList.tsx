@@ -13,7 +13,7 @@ const statusClasses: Record<CatalogPuzzle['status'], string> = {
 
 export function CatalogList() {
   const t = useT();
-  const [, setLocation] = useLocation();
+  const [, navigate] = useLocation();
   const [puzzles, setPuzzles] = useState<CatalogPuzzle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,7 +48,7 @@ export function CatalogList() {
       <div class="mb-6 flex items-center justify-between">
         <h1 class="text-xl font-semibold text-gray-900">{t('admin.catalog.title')}</h1>
         <button
-          onClick={() => setLocation('/admin/catalog/new')}
+          onClick={() => navigate('/admin/catalog/new')}
           class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           {t('admin.catalog.add')}
@@ -61,23 +61,20 @@ export function CatalogList() {
         <p class="text-gray-500">{t('catalog.empty')}</p>
       ) : (
         <div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <table class="min-w-full divide-y divide-gray-200">
+          <table class="min-w-full border-collapse">
             <thead class="bg-gray-50">
               <tr>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Image Key
+                  Превью
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Название (RU / EN)
+                  Название
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                   Статус
                 </th>
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                   Featured
-                </th>
-                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Порядок
                 </th>
                 <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">
                   Действия
@@ -86,15 +83,20 @@ export function CatalogList() {
             </thead>
             <tbody class="divide-y divide-gray-200">
               {puzzles.map((puzzle) => (
-                <tr key={puzzle.id} class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-xs text-gray-500 font-mono">{puzzle.image_key}</td>
+                <tr key={puzzle.id} class="even:bg-gray-50 hover:bg-gray-100">
+                  <td class="px-4 py-3">
+                    <img
+                      src={`/api/media/${puzzle.image_key}`}
+                      class="w-16 h-16 object-cover rounded"
+                      alt=""
+                    />
+                  </td>
                   <td class="px-4 py-3 text-sm text-gray-900">
-                    <div>{puzzle.titles['ru'] ?? '—'}</div>
-                    <div class="text-xs text-gray-500">{puzzle.titles['en'] ?? '—'}</div>
+                    {puzzle.title || '—'}
                   </td>
                   <td class="px-4 py-3">
                     <span
-                      class={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses[puzzle.status]}`}
+                      class={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${statusClasses[puzzle.status]}`}
                     >
                       {t(`admin.catalog.status.${puzzle.status}`)}
                     </span>
@@ -102,17 +104,16 @@ export function CatalogList() {
                   <td class="px-4 py-3 text-sm text-gray-900">
                     {puzzle.featured ? '✓' : '—'}
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-900">{puzzle.sort_order}</td>
                   <td class="px-4 py-3 text-right">
                     <button
-                      onClick={() => setLocation(`/admin/catalog/${puzzle.id}/edit`)}
-                      class="mr-2 text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => navigate(`/admin/catalog/${puzzle.id}/edit`)}
+                      class="mr-2 rounded-md bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
                     >
                       {t('common.edit')}
                     </button>
                     <button
                       onClick={() => handleDelete(puzzle.id)}
-                      class="text-sm text-red-600 hover:text-red-800"
+                      class="rounded-md bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
                     >
                       {t('common.delete')}
                     </button>

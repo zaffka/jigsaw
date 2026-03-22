@@ -1,0 +1,54 @@
+{
+  "login": {
+    "title": "登录",
+    "email": "电子邮件",
+    "password": "密码",
+    "submit": "登录",
+    "error": "邮箱或密码错误"
+  },
+  "admin": {
+    "catalog": {
+      "title": "拼图目录",
+      "add": "添加拼图",
+      "status": {
+        "processing": "处理中",
+        "ready": "就绪",
+        "failed": "失败"
+      },
+      "form": {
+        "title": "标题",
+        "locale": "语言",
+        "featured": "推荐",
+        "sortOrder": "排序",
+        "image": "图片",
+        "save": "保存",
+        "cancel": "取消",
+        "upload": "上传拼图"
+      }
+    },
+    "users": {
+      "title": "用户",
+      "email": "邮箱",
+      "role": "角色",
+      "locale": "语言",
+      "createdAt": "注册日期"
+    },
+    "nav": {
+      "catalog": "目录",
+      "users": "用户"
+    }
+  },
+  "catalog": {
+    "title": "目录",
+    "empty": "暂无拼图"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "发生错误",
+    "delete": "删除",
+    "edit": "编辑",
+    "save": "保存",
+    "cancel": "取消",
+    "logout": "退出"
+  }
+}

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useLocation } from 'wouter';
 import { api } from '../../api';
-import { useT, useLocale } from '../../i18n';
+import { useT } from '../../i18n';
 import { Spinner } from '../../components/Spinner';
 import type { CatalogPuzzle } from '../../types';
 
 export function CatalogPublic() {
   const t = useT();
-  const locale = useLocale();
+  const [, navigate] = useLocation();
   const [puzzles, setPuzzles] = useState<CatalogPuzzle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -14,7 +15,7 @@ export function CatalogPublic() {
   useEffect(() => {
     api.catalog
       .list()
-      .then(setPuzzles)
+      .then((all) => setPuzzles(all.filter((p) => p.status === 'ready')))
       .catch(() => setError(t('common.error')))
       .finally(() => setLoading(false));
   }, []);
@@ -28,26 +29,26 @@ export function CatalogPublic() {
       {error && <p class="mb-4 text-red-600">{error}</p>}
 
       {puzzles.length === 0 ? (
-        <p class="text-gray-500">{t('catalog.empty')}</p>
+        <p class="text-gray-500">Пока нет пазлов</p>
       ) : (
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {puzzles.map((puzzle) => (
-            <div
+            <button
               key={puzzle.id}
-              class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/play/${puzzle.id}`)}
+              class="rounded-xl overflow-hidden shadow border border-gray-200 bg-white hover:shadow-lg active:scale-95 transition-all text-left w-full"
             >
-              <div class="mb-3 flex h-32 items-center justify-center rounded-md bg-gray-100 text-xs text-gray-400">
-                {puzzle.image_key}
-              </div>
-              <h2 class="font-medium text-gray-900">
-                {puzzle.titles[locale] ?? puzzle.titles['ru'] ?? puzzle.titles['en'] ?? '—'}
-              </h2>
-              {puzzle.status !== 'ready' && (
-                <span class="mt-1 inline-block text-xs text-gray-500">
-                  {t(`admin.catalog.status.${puzzle.status}`)}
-                </span>
+              <img
+                src={`/api/media/${puzzle.image_key}`}
+                class="w-full h-44 object-cover sm:h-48"
+                alt={puzzle.title}
+              />
+              {puzzle.featured && (
+                <div class="px-3 pb-2 pt-1">
+                  <span class="text-xs text-yellow-600">★ Рекомендуется</span>
+                </div>
               )}
-            </div>
+            </button>
           ))}
         </div>
       )}

@@ -46,6 +46,7 @@ services:
     command: 'server -s3 -s3.config=/etc/seaweedfs/s3.json -dir=/data'
     volumes:
       - ./.seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+      - seaweedfs_data:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.seaweedfs.rule=Host(`s3.domain.tld`)"
@@ -54,4 +55,6 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  seaweedfs_data:
     driver: local

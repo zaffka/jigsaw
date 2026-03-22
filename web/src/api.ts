@@ -1,4 +1,4 @@
-import type { User, CatalogPuzzle } from './types';
+import type { User, CatalogPuzzle, GamePuzzle, Reward } from './types';
 
 const BASE = '/api';
 
@@ -77,15 +77,18 @@ export const api = {
   },
   catalog: {
     list: () => get<CatalogPuzzle[]>('/catalog'),
-    get: (id: string) => get<CatalogPuzzle>(`/catalog/${id}`),
+    get: (id: string) => get<GamePuzzle>(`/catalog/${id}`),
   },
   admin: {
     catalog: {
-      list: () => get<CatalogPuzzle[]>('/admin/catalog'),
-      create: (formData: FormData) => postForm<CatalogPuzzle>('/admin/catalog', formData),
+      list: () => get<CatalogPuzzle[]>('/admin/catalog/puzzles'),
+      create: (formData: FormData) => postForm<CatalogPuzzle>('/admin/catalog/puzzles', formData),
       update: (id: string, data: Partial<CatalogPuzzle>) =>
-        put<CatalogPuzzle>(`/admin/catalog/${id}`, data),
-      delete: (id: string) => del(`/admin/catalog/${id}`),
+        put<CatalogPuzzle>(`/admin/catalog/puzzles/${id}`, data),
+      delete: (id: string) => del(`/admin/catalog/puzzles/${id}`),
+      getReward: (id: string) => get<Reward | null>(`/admin/catalog/puzzles/${id}/reward`),
+      upsertReward: (id: string, form: FormData) =>
+        postForm<Reward>(`/admin/catalog/puzzles/${id}/reward`, form),
     },
     users: {
       list: () => get<User[]>('/admin/users'),
