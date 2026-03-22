@@ -2,3 +2,15 @@
 .claude/
 .vscode/
 .docker/.build/
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# Go build
+jigsaw
+*.test
+
+# Env overrides
+.env
+.env.local

@@ -1,0 +1,53 @@
+import { Route, Switch, Redirect } from 'wouter';
+import { I18nProvider } from './i18n';
+import { Login } from './pages/Login';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { CatalogList } from './pages/admin/CatalogList';
+import { CatalogCreate } from './pages/admin/CatalogCreate';
+import { CatalogEdit } from './pages/admin/CatalogEdit';
+import { UserList } from './pages/admin/UserList';
+import { CatalogPublic } from './pages/catalog/CatalogPublic';
+
+export function App() {
+  return (
+    <I18nProvider>
+      <Switch>
+        <Route path="/login" component={Login} />
+
+        <Route path="/admin/catalog/new">
+          <AdminLayout>
+            <CatalogCreate />
+          </AdminLayout>
+        </Route>
+
+        <Route path="/admin/catalog/:id/edit">
+          <AdminLayout>
+            <CatalogEdit />
+          </AdminLayout>
+        </Route>
+
+        <Route path="/admin/catalog">
+          <AdminLayout>
+            <CatalogList />
+          </AdminLayout>
+        </Route>
+
+        <Route path="/admin/users">
+          <AdminLayout>
+            <UserList />
+          </AdminLayout>
+        </Route>
+
+        <Route path="/admin">
+          <Redirect to="/admin/catalog" />
+        </Route>
+
+        <Route path="/catalog" component={CatalogPublic} />
+
+        <Route path="/">
+          <Redirect to="/catalog" />
+        </Route>
+      </Switch>
+    </I18nProvider>
+  );
+}

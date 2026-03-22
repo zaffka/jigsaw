@@ -1,0 +1,54 @@
+{
+  "login": {
+    "title": "Sign In",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign In",
+    "error": "Invalid email or password"
+  },
+  "admin": {
+    "catalog": {
+      "title": "Puzzle Catalog",
+      "add": "Add Puzzle",
+      "status": {
+        "processing": "Processing",
+        "ready": "Ready",
+        "failed": "Failed"
+      },
+      "form": {
+        "titleRu": "Title (Russian)",
+        "titleEn": "Title (English)",
+        "featured": "Featured",
+        "sortOrder": "Sort Order",
+        "image": "Image",
+        "save": "Save",
+        "cancel": "Cancel",
+        "upload": "Upload Puzzle"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "email": "Email",
+      "role": "Role",
+      "locale": "Language",
+      "createdAt": "Registration Date"
+    },
+    "nav": {
+      "catalog": "Catalog",
+      "users": "Users"
+    }
+  },
+  "catalog": {
+    "title": "Catalog",
+    "empty": "No puzzles added yet"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "logout": "Sign Out"
+  }
+}

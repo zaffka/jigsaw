@@ -27,9 +27,6 @@ RUN apk add --no-cache ca-certificates
 # Copy binary from builder
 COPY --from=builder /app/jigsaw .
 
-# Copy migrations (needed for embed.FS)
-COPY --from=builder /app/internal/migrate/sql ./internal/migrate/sql
-
 # Expose port (configured via PORT env var, default 8080)
 EXPOSE 8080
 

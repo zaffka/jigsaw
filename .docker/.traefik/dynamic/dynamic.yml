@@ -1,34 +1,4 @@
 http:
-  routers:
-    # API → Go-сервис
-    jigsaw-api:
-      rule: "Host(`jigsaw.domain.tld`) && PathPrefix(`/api`)"
-      entrypoints:
-        - web
-      service: jigsaw-api
-      middlewares:
-        - corsHeader
-        - rateLimit
-
-    # Всё остальное → статика фронтенда
-    jigsaw-web:
-      rule: "Host(`jigsaw.domain.tld`)"
-      entrypoints:
-        - web
-      service: jigsaw-web
-      priority: 1
-
-  services:
-    jigsaw-api:
-      loadBalancer:
-        servers:
-          - url: "http://jigsaw:8082"
-
-    jigsaw-web:
-      loadBalancer:
-        servers:
-          - url: "http://jigsaw-web:3000"
-
   middlewares:
     corsHeader:
       headers:
@@ -40,10 +10,11 @@ http:
           - DELETE
         accessControlAllowHeaders: "Content-Type, Authorization, X-Requested-With"
         accessControlAllowOriginList:
-          - http://jigsaw.domain.tld
+          - "http://web.domain.tld"
         accessControlAllowCredentials: true
         accessControlMaxAge: 100
         addVaryHeader: true
+
     rateLimit:
       rateLimit:
         average: 100
