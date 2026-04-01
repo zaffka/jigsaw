@@ -5,6 +5,19 @@ import { h } from 'preact';
 
 type Translations = Record<string, unknown>;
 
+export const SUPPORTED_LOCALES = ['ru', 'en', 'es', 'zh', 'th'] as const;
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+export const LOCALE_LABELS: Record<Locale, string> = {
+  ru: 'RU',
+  en: 'EN',
+  es: 'ES',
+  zh: '中',
+  th: 'TH',
+};
+
+const STORAGE_KEY = 'jigsaw_locale';
+
 function getNestedValue(obj: Translations, key: string): string {
   const parts = key.split('.');
   let current: unknown = obj;
@@ -16,7 +29,10 @@ function getNestedValue(obj: Translations, key: string): string {
   return key;
 }
 
-export function detectLocale(): string {
+export function detectLocale(): Locale {
+  const saved = localStorage.getItem(STORAGE_KEY) as Locale | null;
+  if (saved && SUPPORTED_LOCALES.includes(saved)) return saved;
+
   const lang = navigator.language || 'ru';
   if (lang.startsWith('ru')) return 'ru';
   if (lang.startsWith('en')) return 'en';
@@ -34,12 +50,14 @@ export async function loadLocale(locale: string): Promise<Translations> {
 
 interface I18nContextValue {
   t: (key: string) => string;
-  locale: string;
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   t: (key: string) => key,
   locale: 'ru',
+  setLocale: () => {},
 });
 
 interface I18nProviderProps {
@@ -48,23 +66,26 @@ interface I18nProviderProps {
 
 export function I18nProvider({ children }: I18nProviderProps) {
   const [translations, setTranslations] = useState<Translations>({});
-  const [locale, setLocale] = useState<string>('ru');
+  const [locale, setLocaleState] = useState<Locale>(() => detectLocale());
 
   useEffect(() => {
-    const detected = detectLocale();
-    setLocale(detected);
-    loadLocale(detected)
+    loadLocale(locale)
       .then(setTranslations)
       .catch(() => {
-        if (detected !== 'ru') {
+        if (locale !== 'ru') {
           return loadLocale('ru').then(setTranslations);
         }
       });
-  }, []);
+  }, [locale]);
+
+  const setLocale = (next: Locale) => {
+    localStorage.setItem(STORAGE_KEY, next);
+    setLocaleState(next);
+  };
 
   const t = (key: string): string => getNestedValue(translations, key);
 
-  return h(I18nContext.Provider, { value: { t, locale } }, children);
+  return h(I18nContext.Provider, { value: { t, locale, setLocale } }, children);
 }
 
 export function useT() {
@@ -73,4 +94,8 @@ export function useT() {
 
 export function useLocale() {
   return useContext(I18nContext).locale;
+}
+
+export function useSetLocale() {
+  return useContext(I18nContext).setLocale;
 }

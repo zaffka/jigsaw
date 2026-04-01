@@ -1,4 +1,4 @@
-.PHONY: mod test lint build up down clean
+.PHONY: mod test lint build up down clean web
 
 .NOTPARALLEL:
 
@@ -14,7 +14,10 @@ lint:
 build:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-X main.serviceVersion=v0.0.0" -o .docker/.build/jigsaw.amd64 .
 
-up: build
+web:
+	cd web && npm run build
+
+up: web build
 	docker compose up -d --build
 
 down:

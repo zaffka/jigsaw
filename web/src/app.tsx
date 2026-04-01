@@ -8,6 +8,7 @@ import { CatalogEdit } from './pages/admin/CatalogEdit';
 import { UserList } from './pages/admin/UserList';
 import { CatalogPublic } from './pages/catalog/CatalogPublic';
 import { GameScreen } from './pages/game/GameScreen';
+import { About } from './pages/About';
 
 export function App() {
   return (
@@ -46,6 +47,8 @@ export function App() {
         <Route path="/play/:id" component={GameScreen} />
 
         <Route path="/catalog" component={CatalogPublic} />
+
+        <Route path="/about" component={About} />
 
         <Route path="/">
           <Redirect to="/catalog" />

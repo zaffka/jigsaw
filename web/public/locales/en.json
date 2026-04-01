@@ -40,7 +40,13 @@
   },
   "catalog": {
     "title": "Catalog",
-    "empty": "No puzzles added yet"
+    "empty": "No puzzles added yet",
+    "featured": "Recommended"
+  },
+  "about": {
+    "title": "Jigsaw",
+    "description": "Online puzzles for children with autism spectrum disorder. Assemble pictures and earn rewards!",
+    "toCatalog": "Go to puzzles"
   },
   "common": {
     "loading": "Loading...",

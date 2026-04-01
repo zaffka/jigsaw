@@ -40,7 +40,13 @@
   },
   "catalog": {
     "title": "目录",
-    "empty": "暂无拼图"
+    "empty": "暂无拼图",
+    "featured": "推荐"
+  },
+  "about": {
+    "title": "Jigsaw",
+    "description": "为自闭症谱系障碍儿童设计的在线拼图游戏。拼好图画，赢取奖励！",
+    "toCatalog": "去拼图"
   },
   "common": {
     "loading": "加载中...",

@@ -40,7 +40,13 @@
   },
   "catalog": {
     "title": "Catálogo",
-    "empty": "Aún no hay puzzles"
+    "empty": "Aún no hay puzzles",
+    "featured": "Recomendado"
+  },
+  "about": {
+    "title": "Jigsaw",
+    "description": "Puzzles en línea para niños con trastorno del espectro autista. ¡Arma las imágenes y gana premios!",
+    "toCatalog": "Ver puzzles"
   },
   "common": {
     "loading": "Cargando...",
