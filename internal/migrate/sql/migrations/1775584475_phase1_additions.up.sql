@@ -27,16 +27,19 @@ INSERT INTO categories (slug, name, icon, sort_order) VALUES
 
 -- Extend puzzles table
 ALTER TABLE puzzles ADD COLUMN category_id UUID REFERENCES categories(id);
-ALTER TABLE puzzles ADD COLUMN difficulty  TEXT;
-ALTER TABLE puzzles ADD COLUMN visibility  TEXT NOT NULL DEFAULT 'private';
-ALTER TABLE puzzles ADD COLUMN owner_type  TEXT NOT NULL DEFAULT 'parent';
+ALTER TABLE puzzles ADD COLUMN difficulty  TEXT CHECK (difficulty IN ('easy', 'medium', 'hard'));
+ALTER TABLE puzzles ADD COLUMN visibility  TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public'));
+ALTER TABLE puzzles ADD COLUMN owner_type  TEXT NOT NULL DEFAULT 'parent' CHECK (owner_type IN ('parent', 'admin'));
+
+CREATE INDEX idx_puzzles_category_id ON puzzles(category_id);
+CREATE INDEX idx_puzzles_visibility ON puzzles(visibility);
 
 -- Puzzle layers (replaces rewards concept for multi-layer rewards)
 CREATE TABLE puzzle_layers (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     puzzle_id   UUID NOT NULL REFERENCES puzzles(id) ON DELETE CASCADE,
     sort_order  INT NOT NULL DEFAULT 0,
-    type        TEXT NOT NULL,
+    type        TEXT NOT NULL CHECK (type IN ('word', 'audio', 'video')),
     text        TEXT,
     audio_key   TEXT,
     tts_key     TEXT,
@@ -68,7 +71,3 @@ ALTER TABLE children ADD COLUMN avatar_emoji TEXT NOT NULL DEFAULT '🧒';
 ALTER TABLE catalog_submissions ADD COLUMN admin_comment TEXT;
 ALTER TABLE catalog_submissions ADD COLUMN notified_at   TIMESTAMPTZ;
 
--- Seed default admin user (password: changeme, bcrypt cost 10)
-INSERT INTO users (email, password_hash, role)
-VALUES ('admin@jigsaw.local', '$2a$10$rUj4dQ5FUODVTuViUMeT4.SLImatYONIhg3UnJ5NFI1jGqzsJelJu', 'admin')
-ON CONFLICT DO NOTHING;

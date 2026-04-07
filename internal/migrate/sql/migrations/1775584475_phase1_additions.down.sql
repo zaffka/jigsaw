@@ -1,6 +1,3 @@
--- Remove seeded admin user
-DELETE FROM users WHERE email = 'admin@jigsaw.local' AND role = 'admin';
-
 -- Revert catalog_submissions columns
 ALTER TABLE catalog_submissions DROP COLUMN IF EXISTS notified_at;
 ALTER TABLE catalog_submissions DROP COLUMN IF EXISTS admin_comment;
@@ -24,4 +21,13 @@ ALTER TABLE puzzles DROP COLUMN IF EXISTS category_id;
 -- Drop categories (seed data removed with table)
 DROP TABLE IF EXISTS categories;
 
--- Note: rewards table was dropped in up-migration; manual restore needed if rollback required
+-- Restore rewards table that was dropped in up-migration
+CREATE TABLE IF NOT EXISTS rewards (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    puzzle_id  UUID UNIQUE NOT NULL REFERENCES puzzles(id) ON DELETE CASCADE,
+    video_key  TEXT,
+    word       TEXT,
+    tts_key    TEXT,
+    animation  TEXT NOT NULL DEFAULT 'confetti',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

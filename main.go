@@ -57,6 +57,10 @@ func main() {
 		return
 	}
 
+	if err := migrate.SeedAdmin(ctx, pool); err != nil {
+		log.Fatal("seed admin", zap.Error(err))
+	}
+
 	s3Client, err := do.Invoke[*s3.BucketCli](container)
 	if err != nil {
 		log.Error("failed to invoke s3 client", zap.Error(err))
