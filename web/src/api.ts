@@ -79,6 +79,9 @@ export const api = {
     list: () => get<CatalogPuzzle[]>('/catalog'),
     get: (id: string) => get<GamePuzzle>(`/catalog/${id}`),
   },
+  play: {
+    complete: (id: string): Promise<void> => post<void>(`/play/${id}/complete`, null).catch(() => {}),
+  },
   admin: {
     catalog: {
       list: () => get<CatalogPuzzle[]>('/admin/catalog/puzzles'),

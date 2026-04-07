@@ -8,6 +8,7 @@ import { CatalogEdit } from './pages/admin/CatalogEdit';
 import { UserList } from './pages/admin/UserList';
 import { CatalogPublic } from './pages/catalog/CatalogPublic';
 import { GameScreen } from './pages/game/GameScreen';
+import { RewardPage } from './pages/game/RewardPage';
 import { About } from './pages/About';
 
 export function App() {
@@ -45,6 +46,7 @@ export function App() {
         </Route>
 
         <Route path="/play/:id" component={GameScreen} />
+        <Route path="/reward/:id" component={RewardPage} />
 
         <Route path="/catalog" component={CatalogPublic} />
 
