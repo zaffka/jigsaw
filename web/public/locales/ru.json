@@ -41,7 +41,16 @@
   "catalog": {
     "title": "Каталог",
     "empty": "Пазлы пока не добавлены",
-    "featured": "Рекомендуется"
+    "featured": "Рекомендуется",
+    "filter": {
+      "all": "Все",
+      "allCategories": "Все категории",
+      "difficulty": {
+        "easy": "Лёгкий",
+        "medium": "Средний",
+        "hard": "Сложный"
+      }
+    }
   },
   "about": {
     "title": "Jigsaw",

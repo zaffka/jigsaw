@@ -41,7 +41,16 @@
   "catalog": {
     "title": "Catálogo",
     "empty": "Aún no hay puzzles",
-    "featured": "Recomendado"
+    "featured": "Recomendado",
+    "filter": {
+      "all": "Todos",
+      "allCategories": "Todas las categorías",
+      "difficulty": {
+        "easy": "Fácil",
+        "medium": "Medio",
+        "hard": "Difícil"
+      }
+    }
   },
   "about": {
     "title": "Jigsaw",

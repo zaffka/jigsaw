@@ -1,4 +1,4 @@
-import type { User, CatalogPuzzle, GamePuzzle, Reward } from './types';
+import type { User, Category, CatalogPuzzle, GamePuzzle, Reward } from './types';
 
 const BASE = '/api';
 
@@ -75,8 +75,17 @@ export const api = {
     logout: () => post<void>('/auth/logout', {}),
     me: () => get<User>('/auth/me'),
   },
+  categories: {
+    list: () => get<Category[]>('/categories'),
+  },
   catalog: {
-    list: () => get<CatalogPuzzle[]>('/catalog'),
+    list: (filters?: { category?: string; difficulty?: string }) => {
+      const params = new URLSearchParams();
+      if (filters?.category) params.set('category', filters.category);
+      if (filters?.difficulty) params.set('difficulty', filters.difficulty);
+      const qs = params.toString();
+      return get<CatalogPuzzle[]>(qs ? `/catalog?${qs}` : '/catalog');
+    },
     get: (id: string) => get<GamePuzzle>(`/catalog/${id}`),
   },
   play: {

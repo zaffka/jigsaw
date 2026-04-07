@@ -7,6 +7,14 @@ export interface User {
 
 export type Locale = 'ru' | 'en' | 'es' | 'zh' | 'th';
 
+export interface Category {
+  id: string;
+  slug: string;
+  name: Record<string, string>;
+  icon: string;
+  sort_order: number;
+}
+
 export interface CatalogPuzzle {
   id: string;
   puzzle_id: string;
@@ -18,6 +26,8 @@ export interface CatalogPuzzle {
   featured: boolean;
   sort_order: number;
   created_at: string;
+  category: string | null;
+  difficulty: 'easy' | 'medium' | 'hard' | '';
 }
 
 export interface Reward {
