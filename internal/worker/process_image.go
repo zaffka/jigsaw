@@ -8,8 +8,6 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 
 	"golang.org/x/image/draw"
@@ -26,7 +24,7 @@ type processImagePayload struct {
 	PuzzleID string `json:"puzzle_id"`
 }
 
-func (w *Worker) processImage(ctx context.Context, task *store.Task) error {
+func (w *Worker) processImage(ctx context.Context, task *store.Task) (retErr error) {
 	var payload processImagePayload
 	if err := json.Unmarshal(task.Payload, &payload); err != nil {
 		return fmt.Errorf("parse payload: %w", err)
@@ -37,7 +35,16 @@ func (w *Worker) processImage(ctx context.Context, task *store.Task) error {
 		return fmt.Errorf("get puzzle %s: %w", payload.PuzzleID, err)
 	}
 
-	// 1. Download original image from S3
+	// On any error, mark the puzzle as failed.
+	defer func() {
+		if retErr != nil {
+			if failErr := w.store.SetPuzzleStatus(ctx, puzzle.ID, "failed"); failErr != nil {
+				w.log.Error("set puzzle failed", zap.String("puzzle_id", puzzle.ID), zap.Error(failErr))
+			}
+		}
+	}()
+
+	// 1. Download original image from S3.
 	obj, err := w.s3.GetObject(ctx, puzzle.ImageKey)
 	if err != nil {
 		return fmt.Errorf("download image %s: %w", puzzle.ImageKey, err)
@@ -49,16 +56,16 @@ func (w *Worker) processImage(ctx context.Context, task *store.Task) error {
 		return fmt.Errorf("read image: %w", err)
 	}
 
-	// 2. Decode
+	// 2. Decode.
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("decode image: %w", err)
 	}
 
-	// 3. Resize if too large
+	// 3. Resize if too large.
 	src = resizeIfNeeded(src, maxImageDimension)
 
-	// 4. Slice
+	// 4. Slice.
 	pieces, err := sliceImage(src, puzzle.Config)
 	if err != nil {
 		return fmt.Errorf("slice image: %w", err)
@@ -66,7 +73,7 @@ func (w *Worker) processImage(ctx context.Context, task *store.Task) error {
 
 	w.log.Info("image sliced", zap.String("puzzle_id", puzzle.ID), zap.Int("pieces", len(pieces)))
 
-	// 5. Upload pieces and collect records
+	// 5. Upload pieces and collect records.
 	records := make([]store.PuzzlePieceRecord, 0, len(pieces))
 	for _, p := range pieces {
 		key, err := w.uploadPiece(ctx, puzzle.ID, p)
@@ -88,18 +95,40 @@ func (w *Worker) processImage(ctx context.Context, task *store.Task) error {
 		})
 	}
 
-	// 6. Save piece records
+	// 6. Save piece records.
 	if err := w.store.CreatePuzzlePieces(ctx, records); err != nil {
 		return fmt.Errorf("save pieces: %w", err)
 	}
 
-	// 7. Mark puzzle ready
-	if err := w.store.SetPuzzleStatus(ctx, puzzle.ID, "ready"); err != nil {
+	// 7. Compute difficulty from config.
+	cols := configInt(puzzle.Config, "cols", 4)
+	rows := configInt(puzzle.Config, "rows", 3)
+	difficulty := computeDifficulty(cols, rows)
+
+	// 8. Mark puzzle ready with difficulty.
+	if err := w.store.SetPuzzleReady(ctx, puzzle.ID, difficulty); err != nil {
 		return fmt.Errorf("set puzzle ready: %w", err)
 	}
 
-	w.log.Info("puzzle ready", zap.String("puzzle_id", puzzle.ID))
+	w.log.Info("puzzle ready",
+		zap.String("puzzle_id", puzzle.ID),
+		zap.String("difficulty", difficulty),
+	)
 	return nil
+}
+
+// computeDifficulty returns difficulty level based on total piece count.
+// ≤6 → "easy", ≤16 → "medium", >16 → "hard".
+func computeDifficulty(cols, rows int) string {
+	total := cols * rows
+	switch {
+	case total <= 6:
+		return "easy"
+	case total <= 16:
+		return "medium"
+	default:
+		return "hard"
+	}
 }
 
 func (w *Worker) uploadPiece(ctx context.Context, puzzleID string, p slicer.Piece) (string, error) {
@@ -108,7 +137,7 @@ func (w *Worker) uploadPiece(ctx context.Context, puzzleID string, p slicer.Piec
 		return "", fmt.Errorf("encode piece: %w", err)
 	}
 
-	key := fmt.Sprintf("pieces/%s/%d.png", puzzleID, p.ID)
+	key := fmt.Sprintf("puzzle-pieces/%s/%d.png", puzzleID, p.ID)
 	data := buf.Bytes()
 	if _, err := w.s3.PutObject(ctx, key, bytes.NewReader(data), int64(len(data)),
 		s3.PutObjectOptions{ContentType: "image/png"}); err != nil {
@@ -199,9 +228,15 @@ func configFloat(cfg map[string]any, key string, def float64) float64 {
 	return def
 }
 
-// generateTTS is a stub — real implementation in phase 5.
+// generateTTS is a stub — real implementation requires TTS provider integration.
 func (w *Worker) generateTTS(_ context.Context, task *store.Task) error {
 	w.log.Info("generate_tts: stub, skipping", zap.String("task_id", task.ID))
+	return nil
+}
+
+// processVideo is a stub — real implementation requires ffmpeg transcoding.
+func (w *Worker) processVideo(_ context.Context, task *store.Task) error {
+	w.log.Info("process_video: stub, skipping", zap.String("task_id", task.ID))
 	return nil
 }
 

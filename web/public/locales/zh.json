@@ -41,7 +41,16 @@
   "catalog": {
     "title": "目录",
     "empty": "暂无拼图",
-    "featured": "推荐"
+    "featured": "推荐",
+    "filter": {
+      "all": "全部",
+      "allCategories": "所有类别",
+      "difficulty": {
+        "easy": "简单",
+        "medium": "中等",
+        "hard": "困难"
+      }
+    }
   },
   "about": {
     "title": "Jigsaw",

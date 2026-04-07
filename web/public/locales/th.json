@@ -41,7 +41,16 @@
   "catalog": {
     "title": "แคตตาล็อก",
     "empty": "ยังไม่มีจิ๊กซอว์",
-    "featured": "แนะนำ"
+    "featured": "แนะนำ",
+    "filter": {
+      "all": "ทั้งหมด",
+      "allCategories": "ทุกหมวดหมู่",
+      "difficulty": {
+        "easy": "ง่าย",
+        "medium": "ปานกลาง",
+        "hard": "ยาก"
+      }
+    }
   },
   "about": {
     "title": "Jigsaw",

@@ -2,8 +2,14 @@ import { useEffect, useRef, useState, useCallback } from 'preact/hooks';
 import { useParams, useLocation } from 'wouter';
 import { api } from '../../api';
 import { Spinner } from '../../components/Spinner';
-import { RewardScreen } from './RewardScreen';
 import type { GamePuzzle, PuzzlePiece } from '../../types';
+
+// ── constants ──────────────────────────────────────────────────────────────
+
+const HEADER_H = 56;
+const PAD = 12;
+const GAP = 10;
+const SNAP_THRESHOLD = 40; // px: center-to-center snap distance
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -30,10 +36,6 @@ interface Layout {
   areaW: number;  // game area width
 }
 
-const HEADER_H = 56;
-const PAD = 12;
-const GAP = 10;
-
 function buildLayout(iw: number, ih: number): Layout | null {
   const areaW = window.innerWidth;
   const areaH = window.innerHeight - HEADER_H;
@@ -51,25 +53,33 @@ function buildLayout(iw: number, ih: number): Layout | null {
   return { boardW, boardH, boardX, boardY, trayY, trayH, areaW };
 }
 
-/** Scatter pieces randomly inside the tray area. Positions are in game-area coords. */
+/** Random position inside the tray area (game-area coords, top-left of piece). */
+function randomTrayPos(
+  pw: number,
+  ph: number,
+  layout: Layout,
+): { x: number; y: number } {
+  const { areaW, trayY, trayH } = layout;
+  const innerPad = 8;
+  const maxX = areaW - pw - innerPad;
+  const maxY = trayY + trayH - ph - innerPad;
+  return {
+    x: innerPad + Math.random() * Math.max(0, maxX - innerPad),
+    y: trayY + innerPad + Math.random() * Math.max(0, maxY - trayY - innerPad),
+  };
+}
+
+/** Scatter all pieces into the tray. Returns position map. */
 function scatterInTray(
   pieces: PuzzlePiece[],
   layout: Layout,
   scale: number,
 ): Record<string, { x: number; y: number }> {
   const result: Record<string, { x: number; y: number }> = {};
-  const { areaW, trayY, trayH } = layout;
-  const innerPad = 8;
-
   pieces.forEach((p) => {
     const pw = p.bounds.w * scale;
     const ph = p.bounds.h * scale;
-    const maxX = areaW - pw - innerPad;
-    const maxY = trayY + trayH - ph - innerPad;
-    result[p.id] = {
-      x: innerPad + Math.random() * Math.max(0, maxX - innerPad),
-      y: trayY + innerPad + Math.random() * Math.max(0, maxY - trayY - innerPad),
-    };
+    result[p.id] = randomTrayPos(pw, ph, layout);
   });
   return result;
 }
@@ -84,7 +94,6 @@ export function GameScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
-  const [solved, setSolved] = useState(false);
 
   const [layout, setLayout] = useState<Layout | null>(null);
   const positions = useRef<Record<string, { x: number; y: number }>>({});
@@ -97,9 +106,12 @@ export function GameScreen() {
     startPY: number;
     startEX: number;
     startEY: number;
+    // Target is the top-left of the correctly-placed piece on the board
     targetX: number;
     targetY: number;
-    threshold: number;
+    // Piece dimensions for center calculation
+    pw: number;
+    ph: number;
   } | null>(null);
 
   // ── fetch ─────────────────────────────────────────────────────────────────
@@ -154,14 +166,21 @@ export function GameScreen() {
 
     const onUp = () => {
       if (!drag.current) return;
-      const { el, pieceId, targetX, targetY, threshold } = drag.current;
+      const { el, pieceId, targetX, targetY, pw, ph } = drag.current;
       drag.current = null;
 
       const x = parseFloat(el.style.left) || 0;
       const y = parseFloat(el.style.top) || 0;
-      const dist = Math.hypot(x - targetX, y - targetY);
 
-      if (dist < threshold) {
+      // Center-to-center snap check
+      const dragCx = x + pw / 2;
+      const dragCy = y + ph / 2;
+      const targCx = targetX + pw / 2;
+      const targCy = targetY + ph / 2;
+      const dist = Math.hypot(dragCx - targCx, dragCy - targCy);
+
+      if (dist <= SNAP_THRESHOLD) {
+        // Snap into place
         el.style.transition = 'left 0.15s, top 0.15s';
         el.style.left = targetX + 'px';
         el.style.top = targetY + 'px';
@@ -170,8 +189,21 @@ export function GameScreen() {
         positions.current[pieceId] = { x: targetX, y: targetY };
         setPlacedIds((prev) => new Set([...prev, pieceId]));
       } else {
+        // Return to tray: find current layout and scatter back
         el.style.zIndex = '10';
-        el.style.transition = '';
+        el.style.transition = 'left 0.25s, top 0.25s';
+        // We need layout to know tray bounds — read from the element's own dataset
+        const trayY = parseFloat(el.dataset.trayY ?? '0');
+        const trayH = parseFloat(el.dataset.trayH ?? '100');
+        const areaW = parseFloat(el.dataset.areaW ?? String(window.innerWidth));
+        const innerPad = 8;
+        const maxX = areaW - pw - innerPad;
+        const maxY = trayY + trayH - ph - innerPad;
+        const nx = innerPad + Math.random() * Math.max(0, maxX - innerPad);
+        const ny = trayY + innerPad + Math.random() * Math.max(0, maxY - trayY - innerPad);
+        el.style.left = nx + 'px';
+        el.style.top = ny + 'px';
+        positions.current[pieceId] = { x: nx, y: ny };
       }
     };
 
@@ -183,19 +215,32 @@ export function GameScreen() {
     };
   }, []);
 
-  // ── check solved ──────────────────────────────────────────────────────────
+  // ── check solved + call complete API ─────────────────────────────────────
 
   useEffect(() => {
     if (!puzzle?.pieces?.length) return;
     if (placedIds.size >= puzzle.pieces.length) {
-      setTimeout(() => setSolved(true), 700);
+      if (!id) return;
+      const timer = setTimeout(() => {
+        api.play.complete(id).finally(() => {
+          navigate(`/reward/${id}`);
+        });
+      }, 700);
+      return () => clearTimeout(timer);
     }
-  }, [placedIds, puzzle]);
+  }, [placedIds, puzzle, id, navigate]);
 
   // ── drag start ────────────────────────────────────────────────────────────
 
   const onPointerDown = useCallback(
-    (e: PointerEvent, p: PuzzlePiece, targetX: number, targetY: number, pw: number, ph: number) => {
+    (
+      e: PointerEvent,
+      p: PuzzlePiece,
+      targetX: number,
+      targetY: number,
+      pw: number,
+      ph: number,
+    ) => {
       const el = e.currentTarget as HTMLElement;
       if (el.dataset.placed === 'true') return;
       e.preventDefault();
@@ -211,20 +256,12 @@ export function GameScreen() {
         startEY: parseFloat(el.style.top) || 0,
         targetX,
         targetY,
-        threshold: Math.min(pw, ph) * 0.45,
+        pw,
+        ph,
       };
     },
     [],
   );
-
-  // ── replay ────────────────────────────────────────────────────────────────
-
-  const handleReplay = useCallback(() => {
-    positions.current = {};
-    setScattered(false);
-    setPlacedIds(new Set());
-    setSolved(false);
-  }, []);
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -238,9 +275,6 @@ export function GameScreen() {
   if (error || !puzzle)
     return <p class="p-6 text-red-600">{error || 'Пазл не найден'}</p>;
 
-  if (solved)
-    return <RewardScreen reward={puzzle.reward ?? null} onReplay={handleReplay} />;
-
   const pieces = puzzle.pieces ?? [];
   const { w: iw, h: ih } = pieces.length ? imgSize(pieces) : { w: 1, h: 1 };
   const scale = layout ? layout.boardW / iw : 0;
@@ -253,17 +287,32 @@ export function GameScreen() {
         class="flex shrink-0 items-center gap-3 bg-white px-4 shadow-sm"
         style={{ height: HEADER_H + 'px' }}
       >
+        {/* Back button */}
         <button
-          onClick={() => navigate('/catalog')}
-          class="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+          onClick={() => history.back()}
+          class="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:bg-gray-200"
           aria-label="Назад"
         >
           ←
         </button>
-        <span class="flex-1" />
-<span class="shrink-0 rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-700">
+
+        <span class="flex-1 truncate text-center text-sm font-medium text-gray-700">
+          {puzzle.title}
+        </span>
+
+        {/* Progress badge */}
+        <span class="shrink-0 rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-700">
           {placedIds.size}&nbsp;/&nbsp;{pieces.length}
         </span>
+
+        {/* Home button */}
+        <button
+          onClick={() => navigate('/catalog')}
+          class="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:bg-gray-200"
+          aria-label="Домой"
+        >
+          🏠
+        </button>
       </header>
 
       {/* Game area — single relative container; all pieces absolutely positioned inside */}
@@ -296,7 +345,7 @@ export function GameScreen() {
               ))}
             </svg>
 
-            {/* Tray: background hint for piece storage area */}
+            {/* Tray: background hint */}
             {layout.trayH > 20 && (
               <div
                 class="absolute rounded-xl border border-amber-200/60 bg-amber-50/70"
@@ -309,12 +358,12 @@ export function GameScreen() {
               />
             )}
 
-            {/* Draggable pieces — positioned in game-area coords */}
+            {/* Draggable pieces */}
             {scattered &&
               pieces.map((p) => {
                 const pw = p.bounds.w * scale;
                 const ph = p.bounds.h * scale;
-                // Target position = board offset + piece position on board
+                // Target position = board offset + piece position on board (top-left)
                 const tx = layout.boardX + p.bounds.x * scale;
                 const ty = layout.boardY + p.bounds.y * scale;
                 const pos = positions.current[p.id] ?? { x: tx, y: ty };
@@ -326,6 +375,9 @@ export function GameScreen() {
                     src={`/api/media/${p.image_key}`}
                     draggable={false}
                     data-placed={String(placed)}
+                    data-tray-y={String(layout.trayY)}
+                    data-tray-h={String(layout.trayH)}
+                    data-area-w={String(layout.areaW)}
                     class={`absolute select-none ${
                       placed ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
                     }`}

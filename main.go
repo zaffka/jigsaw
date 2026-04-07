@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +23,18 @@ import (
 )
 
 var serviceVersion = "0.0.0"
+
+// decodeHexKey decodes a hex-encoded AES-256 key (must be 64 hex chars = 32 bytes).
+func decodeHexKey(s string) ([]byte, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("hex decode: %w", err)
+	}
+	if len(b) != 32 {
+		return nil, fmt.Errorf("key must be 32 bytes (64 hex chars), got %d", len(b))
+	}
+	return b, nil
+}
 
 func main() {
 	ctx, stopFn := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -57,6 +71,11 @@ func main() {
 		return
 	}
 
+	if err := migrate.SeedAdmin(ctx, pool); err != nil {
+		log.Error("failed to seed admin", zap.Error(err))
+		return
+	}
+
 	s3Client, err := do.Invoke[*s3.BucketCli](container)
 	if err != nil {
 		log.Error("failed to invoke s3 client", zap.Error(err))
@@ -70,10 +89,22 @@ func main() {
 	}
 
 	st := store.New(pool)
+	var mediaEncKey []byte
+	if keyHex := viper.GetString("MEDIA_ENCRYPTION_KEY"); keyHex != "" {
+		decoded, err := decodeHexKey(keyHex)
+		if err != nil {
+			log.Error("invalid MEDIA_ENCRYPTION_KEY", zap.Error(err))
+			return
+		}
+		mediaEncKey = decoded
+	}
+
 	h := &handler.Handler{
-		Store: st,
-		S3:    s3Client,
-		Log:   log,
+		Store:              st,
+		S3:                 s3Client,
+		Log:                log,
+		CookieSecure:       viper.GetBool("COOKIE_SECURE"),
+		MediaEncryptionKey: mediaEncKey,
 	}
 
 	authMiddleware := middleware.Auth(st)
@@ -84,6 +115,15 @@ func main() {
 		return authMiddleware(middleware.RequireAuth(next))
 	}
 
+	childAuthMiddleware := middleware.ChildAuth(st)
+	childChain := func(next http.Handler) http.Handler {
+		return childAuthMiddleware(middleware.RequireChild(next))
+	}
+	parentChain := func(next http.Handler) http.Handler {
+		return authMiddleware(middleware.RequireAuth(next))
+	}
+	_ = childChain // used below
+
 	mux.HandleFunc("GET /healthz", h.HandleHealthz)
 
 	mux.Handle("POST /api/auth/register", middleware.Locale(http.HandlerFunc(h.HandleRegister)))
@@ -93,6 +133,13 @@ func main() {
 
 	mux.HandleFunc("GET /api/media/{path...}", h.HandleMedia)
 
+	mux.HandleFunc("GET /api/categories", h.HandleListCategories)
+
+	mux.Handle("GET /api/admin/categories", adminChain(http.HandlerFunc(h.HandleAdminListCategories)))
+	mux.Handle("POST /api/admin/categories", adminChain(http.HandlerFunc(h.HandleAdminCreateCategory)))
+	mux.Handle("PUT /api/admin/categories/{id}", adminChain(http.HandlerFunc(h.HandleAdminUpdateCategory)))
+	mux.Handle("DELETE /api/admin/categories/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCategory)))
+
 	mux.Handle("GET /api/catalog", authMiddleware(http.HandlerFunc(h.HandleListCatalog)))
 	mux.Handle("GET /api/catalog/{id}", authMiddleware(http.HandlerFunc(h.HandleGetCatalogPuzzle)))
 
@@ -101,9 +148,43 @@ func main() {
 	mux.Handle("GET /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminGetCatalogPuzzle)))
 	mux.Handle("PUT /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminUpdateCatalogPuzzle)))
 	mux.Handle("DELETE /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCatalogPuzzle)))
-	mux.Handle("GET /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminGetReward)))
-	mux.Handle("POST /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminUpsertReward)))
 	mux.Handle("GET /api/admin/users", adminChain(http.HandlerFunc(h.HandleAdminListUsers)))
+
+	mux.Handle("GET /api/admin/moderation", adminChain(http.HandlerFunc(h.HandleAdminListModeration)))
+	mux.Handle("POST /api/admin/moderation/{id}/approve", adminChain(http.HandlerFunc(h.HandleAdminApprove)))
+	mux.Handle("POST /api/admin/moderation/{id}/reject", adminChain(http.HandlerFunc(h.HandleAdminReject)))
+
+	// Child auth
+	mux.HandleFunc("POST /api/children/auth", h.HandleChildAuth)
+
+	// Parent → children
+	mux.Handle("GET /api/parent/children", parentChain(http.HandlerFunc(h.HandleParentListChildren)))
+	mux.Handle("POST /api/parent/children", parentChain(http.HandlerFunc(h.HandleParentCreateChild)))
+	mux.Handle("GET /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentGetChild)))
+	mux.Handle("PUT /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentUpdateChild)))
+	mux.Handle("DELETE /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentDeleteChild)))
+
+	// Parent → puzzles
+	mux.Handle("GET /api/parent/puzzles", parentChain(http.HandlerFunc(h.HandleParentListPuzzles)))
+	mux.Handle("POST /api/parent/puzzles", parentChain(http.HandlerFunc(h.HandleParentCreatePuzzle)))
+	mux.Handle("GET /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentGetPuzzle)))
+	mux.Handle("PUT /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentUpdatePuzzle)))
+	mux.Handle("DELETE /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentDeletePuzzle)))
+
+	// Parent → layers
+	mux.Handle("GET /api/parent/puzzles/{id}/layers", parentChain(http.HandlerFunc(h.HandleParentListLayers)))
+	mux.Handle("POST /api/parent/puzzles/{id}/layers", parentChain(http.HandlerFunc(h.HandleParentCreateLayer)))
+	mux.Handle("POST /api/parent/puzzles/{id}/layers/reorder", parentChain(http.HandlerFunc(h.HandleParentReorderLayers)))
+	mux.Handle("PUT /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentUpdateLayer)))
+	mux.Handle("DELETE /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentDeleteLayer)))
+
+	// Parent → moderation
+	mux.Handle("POST /api/parent/puzzles/{id}/submit", parentChain(http.HandlerFunc(h.HandleParentSubmitPuzzle)))
+	mux.Handle("GET /api/parent/notifications", parentChain(http.HandlerFunc(h.HandleParentListNotifications)))
+
+	// Play (best-effort, no auth required)
+	mux.HandleFunc("GET /api/play/completed", h.HandlePlayCompleted)
+	mux.Handle("POST /api/play/{id}/complete", http.HandlerFunc(h.HandlePlayComplete))
 
 	httpServer, err := do.Invoke[*http.Server](container)
 	if err != nil {

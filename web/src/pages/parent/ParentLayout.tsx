@@ -2,26 +2,31 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'wouter';
 import { api } from '../../api';
-import { useT } from '../../i18n';
 import { Spinner } from '../../components/Spinner';
 import type { User } from '../../types';
 
-interface AdminLayoutProps {
+interface ParentLayoutProps {
   children: ComponentChildren;
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
-  const t = useT();
+export function ParentLayout({ children }: ParentLayoutProps) {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [currentPath] = useLocation();
+  const [notifCount, setNotifCount] = useState(0);
+
+  useEffect(() => {
+    api.parent.listNotifications()
+      .then((notifs) => setNotifCount(notifs.length))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.auth
       .me()
       .then((u) => {
-        if (u.role !== 'admin') {
+        if (u.role !== 'parent' && u.role !== 'admin') {
           setLocation('/login');
         } else {
           setUser(u);
@@ -44,9 +49,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   if (!user) return null;
 
   const navItems = [
-    { path: '/admin/catalog', label: t('admin.nav.catalog') },
-    { path: '/admin/users', label: t('admin.nav.users') },
-    { path: '/admin/moderation', label: 'Модерация' },
+    { path: '/parent/puzzles', label: 'Пазлы' },
+    { path: '/parent/children', label: 'Дети' },
+    { path: '/parent/notifications', label: 'Уведомления' },
   ];
 
   return (
@@ -55,7 +60,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <aside class="w-56 border-r border-gray-200 bg-white">
         <div class="border-b border-gray-200 px-4 py-4">
           <a href="/catalog" class="text-lg font-semibold text-blue-600">
-            Jigsaw
+            Мой кабинет
           </a>
           <p class="mt-1 text-xs text-gray-500">{user.email}</p>
         </div>
@@ -64,13 +69,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <a
               key={item.path}
               href={item.path}
-              class={`block rounded-md px-3 py-2 text-sm font-medium ${
+              class={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${
                 currentPath === item.path || currentPath.startsWith(item.path + '/')
                   ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.path === '/parent/notifications' && notifCount > 0 && (
+                <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                  {notifCount}
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -79,7 +89,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             onClick={handleLogout}
             class="w-full rounded-md px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-100"
           >
-            {t('common.logout')}
+            Выйти
           </button>
         </div>
       </aside>

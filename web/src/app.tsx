@@ -6,9 +6,18 @@ import { CatalogList } from './pages/admin/CatalogList';
 import { CatalogCreate } from './pages/admin/CatalogCreate';
 import { CatalogEdit } from './pages/admin/CatalogEdit';
 import { UserList } from './pages/admin/UserList';
+import { ModerationList } from './pages/admin/ModerationList';
 import { CatalogPublic } from './pages/catalog/CatalogPublic';
 import { GameScreen } from './pages/game/GameScreen';
+import { RewardPage } from './pages/game/RewardPage';
 import { About } from './pages/About';
+import { ParentLayout } from './pages/parent/ParentLayout';
+import { PuzzleList } from './pages/parent/PuzzleList';
+import { PuzzleDetail } from './pages/parent/PuzzleDetail';
+import { PuzzleCreate } from './pages/parent/PuzzleCreate';
+import { ChildList } from './pages/parent/ChildList';
+import { NotificationList } from './pages/parent/NotificationList';
+import { ChildSelect } from './pages/ChildSelect';
 
 export function App() {
   return (
@@ -40,11 +49,39 @@ export function App() {
           </AdminLayout>
         </Route>
 
+        <Route path="/admin/moderation">
+          <AdminLayout>
+            <ModerationList />
+          </AdminLayout>
+        </Route>
+
         <Route path="/admin">
           <Redirect to="/admin/catalog" />
         </Route>
 
+        <Route path="/parent/puzzles/new">
+          <ParentLayout><PuzzleCreate /></ParentLayout>
+        </Route>
+        <Route path="/parent/puzzles/:id">
+          <ParentLayout><PuzzleDetail /></ParentLayout>
+        </Route>
+        <Route path="/parent/puzzles">
+          <ParentLayout><PuzzleList /></ParentLayout>
+        </Route>
+        <Route path="/parent/children">
+          <ParentLayout><ChildList /></ParentLayout>
+        </Route>
+        <Route path="/parent/notifications">
+          <ParentLayout><NotificationList /></ParentLayout>
+        </Route>
+        <Route path="/parent">
+          <Redirect to="/parent/puzzles" />
+        </Route>
+
         <Route path="/play/:id" component={GameScreen} />
+        <Route path="/reward/:id" component={RewardPage} />
+
+        <Route path="/child-select" component={ChildSelect} />
 
         <Route path="/catalog" component={CatalogPublic} />
 

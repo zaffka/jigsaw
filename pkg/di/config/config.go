@@ -97,6 +97,13 @@ func (c HTTPServer) Validate() error {
 	return nil
 }
 
+// Cookie holds configuration for HTTP cookies.
+type Cookie struct {
+	// Secure sets the Secure flag on session cookies.
+	// Should be true in production (HTTPS), false in local dev (HTTP).
+	Secure bool
+}
+
 // S3 holds configuration for S3 client registration.
 type S3 struct {
 	Endpoint   string

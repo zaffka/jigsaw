@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"strings"
 
 	"github.com/zaffka/jigsaw/internal/middleware"
 	"github.com/zaffka/jigsaw/internal/store"
@@ -19,16 +18,18 @@ import (
 const maxImageSize = 10 << 20 // 10 MB
 
 type catalogPuzzleResponse struct {
-	ID        string         `json:"id"`
-	PuzzleID  string         `json:"puzzle_id"`
-	Title     string         `json:"title"`
-	Locale    string         `json:"locale"`
-	ImageKey  string         `json:"image_key"`
-	Status    string         `json:"status"`
-	Config    map[string]any `json:"config"`
-	Featured  bool           `json:"featured"`
-	SortOrder int            `json:"sort_order"`
-	CreatedAt string         `json:"created_at"`
+	ID           string         `json:"id"`
+	PuzzleID     string         `json:"puzzle_id"`
+	Title        string         `json:"title"`
+	Locale       string         `json:"locale"`
+	ImageKey     string         `json:"image_key"`
+	Status       string         `json:"status"`
+	Config       map[string]any `json:"config"`
+	Featured     bool           `json:"featured"`
+	SortOrder    int            `json:"sort_order"`
+	CreatedAt    string         `json:"created_at"`
+	Category     *string        `json:"category"`
+	Difficulty   string         `json:"difficulty"`
 }
 
 func catalogPuzzleToResponse(cp *store.CatalogPuzzle) catalogPuzzleResponse {
@@ -43,6 +44,8 @@ func catalogPuzzleToResponse(cp *store.CatalogPuzzle) catalogPuzzleResponse {
 		Featured:  cp.Featured,
 		SortOrder: cp.SortOrder,
 		CreatedAt: cp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Category:  cp.CategorySlug,
+		Difficulty: cp.Difficulty,
 	}
 }
 
@@ -214,124 +217,6 @@ func (h *Handler) HandleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, resp)
-}
-
-// --- Reward ---
-
-type rewardResponse struct {
-	ID        string            `json:"id"`
-	PuzzleID  string            `json:"puzzle_id"`
-	VideoKey  *string `json:"video_key"`
-	Word      *string `json:"word"`
-	TTSKey    *string `json:"tts_key"`
-	Animation string  `json:"animation"`
-}
-
-// HandleAdminUpsertReward POST /api/admin/catalog/puzzles/{id}/reward
-// Multipart form: video file (optional) + words JSON field + animation field.
-// puzzle_id here is catalog_puzzles.id (same as used in other admin endpoints).
-func (h *Handler) HandleAdminUpsertReward(w http.ResponseWriter, r *http.Request) {
-	catalogID := path.Base(strings.TrimSuffix(r.URL.Path, "/reward"))
-
-	cp, err := h.Store.GetCatalogPuzzle(r.Context(), catalogID)
-	if err != nil {
-		if err == store.ErrNotFound {
-			writeError(w, http.StatusNotFound, "puzzle not found")
-			return
-		}
-		h.Log.Error("upsert reward: get puzzle", zap.Error(err))
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	if err := r.ParseMultipartForm(maxImageSize); err != nil {
-		writeError(w, http.StatusBadRequest, "failed to parse form")
-		return
-	}
-
-	// Optional video upload
-	var videoKey *string
-	file, header, err := r.FormFile("video")
-	if err == nil {
-		defer file.Close()
-		ct := header.Header.Get("Content-Type")
-		if ct != "video/mp4" {
-			writeError(w, http.StatusBadRequest, "only MP4 video is supported")
-			return
-		}
-		data, err := io.ReadAll(io.LimitReader(file, 30<<20)) // 30 MB
-		if err != nil {
-			h.Log.Error("upsert reward: read video", zap.Error(err))
-			writeError(w, http.StatusInternalServerError, "failed to read video")
-			return
-		}
-		key := "rewards/" + newObjectKey() + ".mp4"
-		if _, err := h.S3.PutObject(r.Context(), key, bytes.NewReader(data), int64(len(data)), s3.PutObjectOptions{ContentType: ct}); err != nil {
-			h.Log.Error("upsert reward: upload video", zap.Error(err))
-			writeError(w, http.StatusInternalServerError, "failed to upload video")
-			return
-		}
-		videoKey = &key
-	}
-
-	var word *string
-	if v := r.FormValue("word"); v != "" {
-		word = &v
-	}
-
-	animation := r.FormValue("animation")
-
-	reward, err := h.Store.UpsertReward(r.Context(), cp.PuzzleID, videoKey, word, animation)
-	if err != nil {
-		h.Log.Error("upsert reward: db", zap.Error(err))
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, rewardResponse{
-		ID:        reward.ID,
-		PuzzleID:  reward.PuzzleID,
-		VideoKey:  reward.VideoKey,
-		Word:      reward.Word,
-		TTSKey:    reward.TTSKey,
-		Animation: reward.Animation,
-	})
-}
-
-// HandleAdminGetReward GET /api/admin/catalog/puzzles/{id}/reward
-func (h *Handler) HandleAdminGetReward(w http.ResponseWriter, r *http.Request) {
-	catalogID := path.Base(strings.TrimSuffix(r.URL.Path, "/reward"))
-
-	cp, err := h.Store.GetCatalogPuzzle(r.Context(), catalogID)
-	if err != nil {
-		if err == store.ErrNotFound {
-			writeError(w, http.StatusNotFound, "puzzle not found")
-			return
-		}
-		h.Log.Error("get reward: get puzzle", zap.Error(err))
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	reward, err := h.Store.GetRewardByPuzzleID(r.Context(), cp.PuzzleID)
-	if err == store.ErrNotFound {
-		writeJSON(w, http.StatusOK, nil)
-		return
-	}
-	if err != nil {
-		h.Log.Error("get reward", zap.Error(err))
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, rewardResponse{
-		ID:        reward.ID,
-		PuzzleID:  reward.PuzzleID,
-		VideoKey:  reward.VideoKey,
-		Word:      reward.Word,
-		TTSKey:    reward.TTSKey,
-		Animation: reward.Animation,
-	})
 }
 
 func newObjectKey() string {

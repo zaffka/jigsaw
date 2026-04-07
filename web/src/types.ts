@@ -7,6 +7,14 @@ export interface User {
 
 export type Locale = 'ru' | 'en' | 'es' | 'zh' | 'th';
 
+export interface Category {
+  id: string;
+  slug: string;
+  name: Record<string, string>;
+  icon: string;
+  sort_order: number;
+}
+
 export interface CatalogPuzzle {
   id: string;
   puzzle_id: string;
@@ -18,15 +26,8 @@ export interface CatalogPuzzle {
   featured: boolean;
   sort_order: number;
   created_at: string;
-}
-
-export interface Reward {
-  id: string;
-  puzzle_id: string;
-  video_key: string | null;
-  word: string | null;
-  tts_key: string | null;
-  animation: string;
+  category: string | null;
+  difficulty: 'easy' | 'medium' | 'hard' | '';
 }
 
 export interface PieceBounds {
@@ -47,5 +48,67 @@ export interface PuzzlePiece {
 
 export interface GamePuzzle extends CatalogPuzzle {
   pieces: PuzzlePiece[];
-  reward: Reward | null;
+  layers: PuzzleLayer[];
+}
+
+export interface ParentPuzzle {
+  id: string;
+  title: string;
+  locale: string;
+  image_key: string;
+  status: 'processing' | 'ready' | 'failed';
+  config: Record<string, unknown>;
+  category: string | null;
+  difficulty: 'easy' | 'medium' | 'hard' | '';
+  created_at: string;
+}
+
+export interface PuzzleLayer {
+  id: string;
+  puzzle_id: string;
+  sort_order: number;
+  type: 'word' | 'audio' | 'video';
+  text: string | null;
+  audio_key: string | null;
+  tts_key: string | null;
+  video_key: string | null;
+  created_at: string;
+}
+
+export interface Child {
+  id: string;
+  name: string;
+  avatar_emoji: string;
+  created_at: string;
+}
+
+export interface ModerationLayer {
+  id: string;
+  type: 'word' | 'audio' | 'video';
+  sort_order: number;
+  text: string | null;
+  audio_key: string | null;
+  video_key: string | null;
+}
+
+export interface ModerationItem {
+  id: string;
+  puzzle_id: string;
+  puzzle_title: string;
+  image_key: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_comment: string | null;
+  created_at: string;
+  layers: ModerationLayer[];
+}
+
+export interface Submission {
+  id: string;
+  puzzle_id: string;
+  puzzle_title: string;
+  image_key: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_comment: string | null;
+  created_at: string;
+  reviewed_at: string | null;
 }

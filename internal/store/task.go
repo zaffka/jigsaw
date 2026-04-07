@@ -94,13 +94,23 @@ func (s *Store) GetPuzzleByID(ctx context.Context, id string) (*Puzzle, error) {
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(configRaw, &p.Config)
+	if err := json.Unmarshal(configRaw, &p.Config); err != nil {
+		return nil, fmt.Errorf("parse puzzle config: %w", err)
+	}
 	return &p, nil
 }
 
 // SetPuzzleStatus updates puzzle status.
 func (s *Store) SetPuzzleStatus(ctx context.Context, id, status string) error {
 	_, err := s.db.Exec(ctx, `UPDATE puzzles SET status = $2 WHERE id = $1`, id, status)
+	return err
+}
+
+// SetPuzzleReady marks a puzzle as ready and sets its difficulty.
+func (s *Store) SetPuzzleReady(ctx context.Context, id, difficulty string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE puzzles SET status = 'ready', difficulty = $2 WHERE id = $1
+	`, id, difficulty)
 	return err
 }
 

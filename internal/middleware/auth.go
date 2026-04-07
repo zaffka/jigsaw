@@ -35,7 +35,7 @@ func Auth(st *store.Store) func(http.Handler) http.Handler {
 				sess, err := st.GetSessionByToken(r.Context(), token)
 				if err == nil {
 					user, err := st.GetUserByID(r.Context(), sess.UserID)
-					if err == nil {
+					if err == nil && !user.Blocked {
 						ctx := context.WithValue(r.Context(), contextKeyUser, user)
 						r = r.WithContext(ctx)
 					}
@@ -49,7 +49,9 @@ func Auth(st *store.Store) func(http.Handler) http.Handler {
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if UserFromContext(r.Context()) == nil {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized"}`))
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -60,7 +62,9 @@ func RequireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := UserFromContext(r.Context())
 		if user == nil || user.Role != "admin" {
-			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error":"forbidden"}`))
 			return
 		}
 		next.ServeHTTP(w, r)
