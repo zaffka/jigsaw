@@ -10,6 +10,10 @@ import { CatalogPublic } from './pages/catalog/CatalogPublic';
 import { GameScreen } from './pages/game/GameScreen';
 import { RewardPage } from './pages/game/RewardPage';
 import { About } from './pages/About';
+import { ParentLayout } from './pages/parent/ParentLayout';
+import { PuzzleList } from './pages/parent/PuzzleList';
+import { PuzzleDetail } from './pages/parent/PuzzleDetail';
+import { ChildList } from './pages/parent/ChildList';
 
 export function App() {
   return (
@@ -43,6 +47,19 @@ export function App() {
 
         <Route path="/admin">
           <Redirect to="/admin/catalog" />
+        </Route>
+
+        <Route path="/parent/puzzles/:id">
+          <ParentLayout><PuzzleDetail /></ParentLayout>
+        </Route>
+        <Route path="/parent/puzzles">
+          <ParentLayout><PuzzleList /></ParentLayout>
+        </Route>
+        <Route path="/parent/children">
+          <ParentLayout><ChildList /></ParentLayout>
+        </Route>
+        <Route path="/parent">
+          <Redirect to="/parent/puzzles" />
         </Route>
 
         <Route path="/play/:id" component={GameScreen} />

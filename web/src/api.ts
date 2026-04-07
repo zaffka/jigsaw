@@ -1,4 +1,4 @@
-import type { User, Category, CatalogPuzzle, GamePuzzle, Reward } from './types';
+import type { User, Category, CatalogPuzzle, GamePuzzle, Reward, ParentPuzzle, PuzzleLayer, Child } from './types';
 
 const BASE = '/api';
 
@@ -66,6 +66,10 @@ export function del(path: string): Promise<void> {
   return request<void>('DELETE', path);
 }
 
+export function putForm<T>(path: string, formData: FormData): Promise<T> {
+  return request<T>('PUT', path, formData, true);
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -91,6 +95,31 @@ export const api = {
   play: {
     complete: (id: string): Promise<void> =>
       post<void>(`/play/${id}/complete`, null).catch((e) => console.warn('play complete failed:', e)),
+  },
+  parent: {
+    listChildren: () => get<Child[]>('/parent/children'),
+    createChild: (data: { name: string; pin: string; avatar_emoji?: string }) =>
+      post<Child>('/parent/children', data),
+    updateChild: (id: string, data: { name: string; pin?: string; avatar_emoji?: string }) =>
+      put<Child>(`/parent/children/${id}`, data),
+    deleteChild: (id: string) => del(`/parent/children/${id}`),
+
+    listPuzzles: () => get<ParentPuzzle[]>('/parent/puzzles'),
+    getPuzzle: (id: string) => get<ParentPuzzle>(`/parent/puzzles/${id}`),
+    createPuzzle: (form: FormData) => postForm<ParentPuzzle>('/parent/puzzles', form),
+    updatePuzzle: (id: string, data: { title: string; category_id?: string | null }) =>
+      put<ParentPuzzle>(`/parent/puzzles/${id}`, data),
+    deletePuzzle: (id: string) => del(`/parent/puzzles/${id}`),
+
+    listLayers: (puzzleId: string) => get<PuzzleLayer[]>(`/parent/puzzles/${puzzleId}/layers`),
+    createLayer: (puzzleId: string, form: FormData) =>
+      postForm<PuzzleLayer>(`/parent/puzzles/${puzzleId}/layers`, form),
+    updateLayer: (puzzleId: string, layerId: string, form: FormData) =>
+      putForm<PuzzleLayer>(`/parent/puzzles/${puzzleId}/layers/${layerId}`, form),
+    deleteLayer: (puzzleId: string, layerId: string) =>
+      del(`/parent/puzzles/${puzzleId}/layers/${layerId}`),
+    reorderLayers: (puzzleId: string, items: Array<{ id: string; sort_order: number }>) =>
+      post<{ ok: boolean }>(`/parent/puzzles/${puzzleId}/layers/reorder`, items),
   },
   admin: {
     catalog: {
