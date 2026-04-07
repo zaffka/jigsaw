@@ -104,6 +104,14 @@ func (s *Store) SetPuzzleStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+// SetPuzzleReady marks a puzzle as ready and sets its difficulty.
+func (s *Store) SetPuzzleReady(ctx context.Context, id, difficulty string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE puzzles SET status = 'ready', difficulty = $2 WHERE id = $1
+	`, id, difficulty)
+	return err
+}
+
 // PuzzlePieceRecord holds data for one piece to be inserted.
 type PuzzlePieceRecord struct {
 	PuzzleID string
