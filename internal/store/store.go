@@ -381,6 +381,10 @@ func (s *Store) GetPuzzlePieces(ctx context.Context, puzzleID string) ([]*Puzzle
 }
 
 func isDuplicateEmail(err error) bool {
+	return isUniqueViolation(err)
+}
+
+func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
@@ -406,7 +410,9 @@ func scanCategory(row interface {
 	if err := row.Scan(&c.ID, &c.Slug, &nameRaw, &c.Icon, &c.SortOrder, &c.CreatedAt); err != nil {
 		return nil, err
 	}
-	json.Unmarshal(nameRaw, &c.Name)
+	if err := json.Unmarshal(nameRaw, &c.Name); err != nil {
+		return nil, fmt.Errorf("unmarshal category name: %w", err)
+	}
 	return &c, nil
 }
 
@@ -435,11 +441,15 @@ func (s *Store) CreateCategory(ctx context.Context, slug string, name map[string
 	if err != nil {
 		return nil, fmt.Errorf("marshal name: %w", err)
 	}
-	return scanCategory(s.db.QueryRow(ctx, `
+	c, err := scanCategory(s.db.QueryRow(ctx, `
 		INSERT INTO categories (slug, name, icon, sort_order)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, slug, name, icon, sort_order, created_at
 	`, slug, nameJSON, icon, sortOrder))
+	if isUniqueViolation(err) {
+		return nil, ErrConflict
+	}
+	return c, err
 }
 
 func (s *Store) UpdateCategory(ctx context.Context, id string, slug string, name map[string]string, icon string, sortOrder int) (*Category, error) {
@@ -447,11 +457,15 @@ func (s *Store) UpdateCategory(ctx context.Context, id string, slug string, name
 	if err != nil {
 		return nil, fmt.Errorf("marshal name: %w", err)
 	}
-	return scanCategory(s.db.QueryRow(ctx, `
+	c, err := scanCategory(s.db.QueryRow(ctx, `
 		UPDATE categories SET slug = $2, name = $3, icon = $4, sort_order = $5
 		WHERE id = $1
 		RETURNING id, slug, name, icon, sort_order, created_at
 	`, id, slug, nameJSON, icon, sortOrder))
+	if isUniqueViolation(err) {
+		return nil, ErrConflict
+	}
+	return c, err
 }
 
 func (s *Store) DeleteCategory(ctx context.Context, id string) error {

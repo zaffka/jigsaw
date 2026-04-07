@@ -60,6 +60,10 @@ func (h *Handler) HandleAdminCreateCategory(w http.ResponseWriter, r *http.Reque
 
 	c, err := h.Store.CreateCategory(r.Context(), req.Slug, req.Name, req.Icon, req.SortOrder)
 	if err != nil {
+		if err == store.ErrConflict {
+			writeError(w, http.StatusConflict, "slug already exists")
+			return
+		}
 		h.Log.Error("admin create category", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -86,6 +90,10 @@ func (h *Handler) HandleAdminUpdateCategory(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		if err == store.ErrNotFound {
 			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		if err == store.ErrConflict {
+			writeError(w, http.StatusConflict, "slug already exists")
 			return
 		}
 		h.Log.Error("admin update category", zap.Error(err))
