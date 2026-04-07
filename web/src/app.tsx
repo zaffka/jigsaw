@@ -15,6 +15,7 @@ import { PuzzleList } from './pages/parent/PuzzleList';
 import { PuzzleDetail } from './pages/parent/PuzzleDetail';
 import { PuzzleCreate } from './pages/parent/PuzzleCreate';
 import { ChildList } from './pages/parent/ChildList';
+import { ChildSelect } from './pages/ChildSelect';
 
 export function App() {
   return (
@@ -68,6 +69,8 @@ export function App() {
 
         <Route path="/play/:id" component={GameScreen} />
         <Route path="/reward/:id" component={RewardPage} />
+
+        <Route path="/child-select" component={ChildSelect} />
 
         <Route path="/catalog" component={CatalogPublic} />
 

@@ -121,6 +121,13 @@ export const api = {
     reorderLayers: (puzzleId: string, items: Array<{ id: string; sort_order: number }>) =>
       post<{ ok: boolean }>(`/parent/puzzles/${puzzleId}/layers/reorder`, items),
   },
+  children: {
+    auth: (child_id: string, pin: string) =>
+      post<{ token: string; child_id: string; name: string; avatar_emoji: string }>(
+        '/children/auth',
+        { child_id, pin },
+      ),
+  },
   admin: {
     catalog: {
       list: () => get<CatalogPuzzle[]>('/admin/catalog/puzzles'),
