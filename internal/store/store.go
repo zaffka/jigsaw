@@ -322,52 +322,6 @@ func (s *Store) ListPublicCatalog(ctx context.Context, locale string, filters Ca
 	return list, rows.Err()
 }
 
-// --- Reward ---
-
-type Reward struct {
-	ID        string
-	PuzzleID  string
-	VideoKey  *string
-	Word      *string
-	TTSKey    *string
-	Animation string
-	CreatedAt time.Time
-}
-
-func (s *Store) UpsertReward(ctx context.Context, puzzleID string, videoKey, word *string, animation string) (*Reward, error) {
-	if animation == "" {
-		animation = "confetti"
-	}
-	var r Reward
-	err := s.db.QueryRow(ctx, `
-		INSERT INTO rewards (puzzle_id, video_key, word, animation)
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (puzzle_id) DO UPDATE
-			SET video_key = EXCLUDED.video_key,
-			    word      = EXCLUDED.word,
-			    animation = EXCLUDED.animation
-		RETURNING id, puzzle_id, video_key, word, tts_key, animation, created_at
-	`, puzzleID, videoKey, word, animation).Scan(
-		&r.ID, &r.PuzzleID, &r.VideoKey, &r.Word, &r.TTSKey, &r.Animation, &r.CreatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("upsert reward: %w", err)
-	}
-	return &r, nil
-}
-
-func (s *Store) GetRewardByPuzzleID(ctx context.Context, puzzleID string) (*Reward, error) {
-	var r Reward
-	err := s.db.QueryRow(ctx, `
-		SELECT id, puzzle_id, video_key, word, tts_key, animation, created_at
-		FROM rewards WHERE puzzle_id = $1
-	`, puzzleID).Scan(&r.ID, &r.PuzzleID, &r.VideoKey, &r.Word, &r.TTSKey, &r.Animation, &r.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
-}
-
 // --- Puzzle pieces ---
 
 type PuzzlePiece struct {

@@ -25,10 +25,20 @@ type puzzlePieceResponse struct {
 	Bounds   pieceBounds `json:"bounds"`
 }
 
+type puzzleLayerResponse struct {
+	ID        string  `json:"id"`
+	SortOrder int     `json:"sort_order"`
+	Type      string  `json:"type"`
+	Text      *string `json:"text"`
+	AudioKey  *string `json:"audio_key"`
+	TTSKey    *string `json:"tts_key"`
+	VideoKey  *string `json:"video_key"`
+}
+
 type gameCatalogResponse struct {
 	catalogPuzzleResponse
 	Pieces []puzzlePieceResponse `json:"pieces"`
-	Reward *rewardResponse       `json:"reward,omitempty"`
+	Layers []puzzleLayerResponse `json:"layers"`
 }
 
 func toInt(v any) int {
@@ -106,17 +116,23 @@ func (h *Handler) HandleGetCatalogPuzzle(w http.ResponseWriter, r *http.Request)
 			})
 		}
 
-		reward, err := h.Store.GetRewardByPuzzleID(r.Context(), cp.PuzzleID)
-		if err == nil {
-			rr := rewardResponse{
-				ID:        reward.ID,
-				PuzzleID:  reward.PuzzleID,
-				VideoKey:  reward.VideoKey,
-				Word:      reward.Word,
-				TTSKey:    reward.TTSKey,
-				Animation: reward.Animation,
-			}
-			resp.Reward = &rr
+		layers, err := h.Store.ListPuzzleLayers(r.Context(), cp.PuzzleID)
+		if err != nil {
+			h.Log.Error("get puzzle layers", zap.Error(err))
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+		resp.Layers = make([]puzzleLayerResponse, 0, len(layers))
+		for _, l := range layers {
+			resp.Layers = append(resp.Layers, puzzleLayerResponse{
+				ID:        l.ID,
+				SortOrder: l.SortOrder,
+				Type:      l.Type,
+				Text:      l.Text,
+				AudioKey:  l.AudioKey,
+				TTSKey:    l.TTSKey,
+				VideoKey:  l.VideoKey,
+			})
 		}
 	}
 

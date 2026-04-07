@@ -123,8 +123,6 @@ func main() {
 	mux.Handle("GET /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminGetCatalogPuzzle)))
 	mux.Handle("PUT /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminUpdateCatalogPuzzle)))
 	mux.Handle("DELETE /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCatalogPuzzle)))
-	mux.Handle("GET /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminGetReward)))
-	mux.Handle("POST /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminUpsertReward)))
 	mux.Handle("GET /api/admin/users", adminChain(http.HandlerFunc(h.HandleAdminListUsers)))
 
 	// Child auth
@@ -152,6 +150,7 @@ func main() {
 	mux.Handle("DELETE /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentDeleteLayer)))
 
 	// Play (best-effort, no auth required)
+	mux.HandleFunc("GET /api/play/completed", h.HandlePlayCompleted)
 	mux.Handle("POST /api/play/{id}/complete", http.HandlerFunc(h.HandlePlayComplete))
 
 	httpServer, err := do.Invoke[*http.Server](container)
