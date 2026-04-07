@@ -81,3 +81,34 @@ export interface Child {
   avatar_emoji: string;
   created_at: string;
 }
+
+export interface ModerationLayer {
+  id: string;
+  type: 'word' | 'audio' | 'video';
+  sort_order: number;
+  text: string | null;
+  audio_key: string | null;
+  video_key: string | null;
+}
+
+export interface ModerationItem {
+  id: string;
+  puzzle_id: string;
+  puzzle_title: string;
+  image_key: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_comment: string | null;
+  created_at: string;
+  layers: ModerationLayer[];
+}
+
+export interface Submission {
+  id: string;
+  puzzle_id: string;
+  puzzle_title: string;
+  image_key: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_comment: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}

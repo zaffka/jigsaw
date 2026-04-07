@@ -6,6 +6,7 @@ import { CatalogList } from './pages/admin/CatalogList';
 import { CatalogCreate } from './pages/admin/CatalogCreate';
 import { CatalogEdit } from './pages/admin/CatalogEdit';
 import { UserList } from './pages/admin/UserList';
+import { ModerationList } from './pages/admin/ModerationList';
 import { CatalogPublic } from './pages/catalog/CatalogPublic';
 import { GameScreen } from './pages/game/GameScreen';
 import { RewardPage } from './pages/game/RewardPage';
@@ -44,6 +45,12 @@ export function App() {
         <Route path="/admin/users">
           <AdminLayout>
             <UserList />
+          </AdminLayout>
+        </Route>
+
+        <Route path="/admin/moderation">
+          <AdminLayout>
+            <ModerationList />
           </AdminLayout>
         </Route>
 

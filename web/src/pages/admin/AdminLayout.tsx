@@ -46,6 +46,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { path: '/admin/catalog', label: t('admin.nav.catalog') },
     { path: '/admin/users', label: t('admin.nav.users') },
+    { path: '/admin/moderation', label: 'Модерация' },
   ];
 
   return (

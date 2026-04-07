@@ -1,4 +1,4 @@
-import type { User, Category, CatalogPuzzle, GamePuzzle, ParentPuzzle, PuzzleLayer, Child } from './types';
+import type { User, Category, CatalogPuzzle, GamePuzzle, ParentPuzzle, PuzzleLayer, Child, ModerationItem, Submission } from './types';
 
 const BASE = '/api';
 
@@ -128,6 +128,10 @@ export const api = {
       del(`/parent/puzzles/${puzzleId}/layers/${layerId}`),
     reorderLayers: (puzzleId: string, items: Array<{ id: string; sort_order: number }>) =>
       post<{ ok: boolean }>(`/parent/puzzles/${puzzleId}/layers/reorder`, items),
+
+    submit: (puzzleId: string) =>
+      post<Submission>(`/parent/puzzles/${puzzleId}/submit`, {}),
+    listNotifications: () => get<Submission[]>('/parent/notifications'),
   },
   children: {
     auth: (child_id: string, pin: string) =>
@@ -149,6 +153,12 @@ export const api = {
     },
     users: {
       list: () => get<User[]>('/admin/users'),
+    },
+    moderation: {
+      list: () => get<ModerationItem[]>('/admin/moderation'),
+      approve: (id: string) => post<{ ok: boolean }>(`/admin/moderation/${id}/approve`, {}),
+      reject: (id: string, comment: string) =>
+        post<{ ok: boolean }>(`/admin/moderation/${id}/reject`, { comment }),
     },
   },
 };
