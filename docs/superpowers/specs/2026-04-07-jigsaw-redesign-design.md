@@ -241,7 +241,7 @@ avatars/{child_id}.{jpg|png}            — аватарки детей
 ### Фаза 1 — Фундамент (публичный каталог работает)
 **Бэкенд:**
 - [ ] Завершить `POST /api/auth/login` и `GET /api/auth/me`
-- [ ] Первый admin создаётся через seed-миграцию (INSERT с email + bcrypt-хэш из env `ADMIN_PASSWORD`)
+- [ ] Первый admin создаётся через seed-миграцию (INSERT с email + bcrypt-хэш из env `SEED_ADMIN_PASSWORD`)
 - [ ] Воркер `process_image`: нарезка → S3 → puzzle_pieces → difficulty → status='ready'
 - [ ] Миграция: `categories` (со стартовым seed), поля `category_id`/`difficulty`/`visibility`/`owner_type` в `puzzles`
 - [ ] `GET /api/categories`
