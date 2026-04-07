@@ -16,6 +16,7 @@ export function RewardPage() {
     api.catalog
       .get(id)
       .then((p) => setPuzzle(p))
+      .catch((e) => console.warn('reward load failed:', e))
       .finally(() => setLoading(false));
   }, [id]);
 

@@ -89,10 +89,8 @@ export function RewardScreen({ reward, onReplay }: Props) {
       });
 
       frame++;
-      // Slow down after 3s
+      // Run every frame for 3s, then every other frame to save resources
       if (frame < 180 || frame % 2 === 0) {
-        animRef.current = requestAnimationFrame(tick);
-      } else {
         animRef.current = requestAnimationFrame(tick);
       }
     };

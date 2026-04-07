@@ -220,15 +220,13 @@ export function GameScreen() {
   useEffect(() => {
     if (!puzzle?.pieces?.length) return;
     if (placedIds.size >= puzzle.pieces.length) {
-      setTimeout(() => {
-        if (id) {
-          api.play.complete(id).finally(() => {
-            navigate(`/reward/${id}`);
-          });
-        } else {
+      if (!id) return;
+      const timer = setTimeout(() => {
+        api.play.complete(id).finally(() => {
           navigate(`/reward/${id}`);
-        }
+        });
       }, 700);
+      return () => clearTimeout(timer);
     }
   }, [placedIds, puzzle, id, navigate]);
 

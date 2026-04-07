@@ -80,7 +80,8 @@ export const api = {
     get: (id: string) => get<GamePuzzle>(`/catalog/${id}`),
   },
   play: {
-    complete: (id: string): Promise<void> => post<void>(`/play/${id}/complete`, null).catch(() => {}),
+    complete: (id: string): Promise<void> =>
+      post<void>(`/play/${id}/complete`, null).catch((e) => console.warn('play complete failed:', e)),
   },
   admin: {
     catalog: {
