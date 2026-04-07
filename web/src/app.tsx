@@ -13,6 +13,7 @@ import { About } from './pages/About';
 import { ParentLayout } from './pages/parent/ParentLayout';
 import { PuzzleList } from './pages/parent/PuzzleList';
 import { PuzzleDetail } from './pages/parent/PuzzleDetail';
+import { PuzzleCreate } from './pages/parent/PuzzleCreate';
 import { ChildList } from './pages/parent/ChildList';
 
 export function App() {
@@ -49,6 +50,9 @@ export function App() {
           <Redirect to="/admin/catalog" />
         </Route>
 
+        <Route path="/parent/puzzles/new">
+          <ParentLayout><PuzzleCreate /></ParentLayout>
+        </Route>
         <Route path="/parent/puzzles/:id">
           <ParentLayout><PuzzleDetail /></ParentLayout>
         </Route>
