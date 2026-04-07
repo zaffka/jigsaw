@@ -19,16 +19,18 @@ import (
 const maxImageSize = 10 << 20 // 10 MB
 
 type catalogPuzzleResponse struct {
-	ID        string         `json:"id"`
-	PuzzleID  string         `json:"puzzle_id"`
-	Title     string         `json:"title"`
-	Locale    string         `json:"locale"`
-	ImageKey  string         `json:"image_key"`
-	Status    string         `json:"status"`
-	Config    map[string]any `json:"config"`
-	Featured  bool           `json:"featured"`
-	SortOrder int            `json:"sort_order"`
-	CreatedAt string         `json:"created_at"`
+	ID           string         `json:"id"`
+	PuzzleID     string         `json:"puzzle_id"`
+	Title        string         `json:"title"`
+	Locale       string         `json:"locale"`
+	ImageKey     string         `json:"image_key"`
+	Status       string         `json:"status"`
+	Config       map[string]any `json:"config"`
+	Featured     bool           `json:"featured"`
+	SortOrder    int            `json:"sort_order"`
+	CreatedAt    string         `json:"created_at"`
+	Category     *string        `json:"category"`
+	Difficulty   string         `json:"difficulty"`
 }
 
 func catalogPuzzleToResponse(cp *store.CatalogPuzzle) catalogPuzzleResponse {
@@ -43,6 +45,8 @@ func catalogPuzzleToResponse(cp *store.CatalogPuzzle) catalogPuzzleResponse {
 		Featured:  cp.Featured,
 		SortOrder: cp.SortOrder,
 		CreatedAt: cp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Category:  cp.CategorySlug,
+		Difficulty: cp.Difficulty,
 	}
 }
 

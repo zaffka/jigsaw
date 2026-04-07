@@ -44,7 +44,11 @@ func toInt(v any) int {
 // HandleListCatalog GET /api/catalog
 func (h *Handler) HandleListCatalog(w http.ResponseWriter, r *http.Request) {
 	locale := middleware.LocaleFromContext(r.Context())
-	list, err := h.Store.ListPublicCatalog(r.Context(), locale)
+	filters := store.CatalogFilters{
+		CategorySlug: r.URL.Query().Get("category"),
+		Difficulty:   r.URL.Query().Get("difficulty"),
+	}
+	list, err := h.Store.ListPublicCatalog(r.Context(), locale, filters)
 	if err != nil {
 		h.Log.Error("list catalog", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal error")

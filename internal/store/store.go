@@ -146,16 +146,18 @@ func (s *Store) DeleteSession(ctx context.Context, token string) error {
 // --- Catalog ---
 
 type CatalogPuzzle struct {
-	ID        string
-	PuzzleID  string
-	Title     string
-	Locale    string
-	ImageKey  string
-	Status    string
-	Config    map[string]any
-	Featured  bool
-	SortOrder int
-	CreatedAt time.Time
+	ID           string
+	PuzzleID     string
+	Title        string
+	Locale       string
+	ImageKey     string
+	Status       string
+	Config       map[string]any
+	Featured     bool
+	SortOrder    int
+	CreatedAt    time.Time
+	CategorySlug *string
+	Difficulty   string
 }
 
 func (s *Store) CreateCatalogPuzzle(ctx context.Context, adminUserID, title, locale, imageKey string, config map[string]any) (*CatalogPuzzle, error) {
@@ -214,7 +216,7 @@ func scanCatalogPuzzle(row interface {
 }) (*CatalogPuzzle, error) {
 	var cp CatalogPuzzle
 	var configRaw []byte
-	err := row.Scan(&cp.ID, &cp.PuzzleID, &cp.Title, &cp.Locale, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt)
+	err := row.Scan(&cp.ID, &cp.PuzzleID, &cp.Title, &cp.Locale, &cp.ImageKey, &cp.Status, &configRaw, &cp.Featured, &cp.SortOrder, &cp.CreatedAt, &cp.CategorySlug, &cp.Difficulty)
 	if err != nil {
 		return nil, err
 	}
@@ -223,9 +225,10 @@ func scanCatalogPuzzle(row interface {
 }
 
 const catalogPuzzleSelect = `
-	SELECT cp.id, cp.puzzle_id, p.title, p.locale, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at
+	SELECT cp.id, cp.puzzle_id, p.title, p.locale, p.image_key, p.status, p.config, cp.featured, cp.sort_order, cp.created_at, cat.slug, p.difficulty
 	FROM catalog_puzzles cp
-	JOIN puzzles p ON p.id = cp.puzzle_id`
+	JOIN puzzles p ON p.id = cp.puzzle_id
+	LEFT JOIN categories cat ON cat.id = p.category_id`
 
 func (s *Store) ListCatalogPuzzles(ctx context.Context) ([]*CatalogPuzzle, error) {
 	rows, err := s.db.Query(ctx, catalogPuzzleSelect+`
@@ -281,10 +284,29 @@ func (s *Store) DeleteCatalogPuzzle(ctx context.Context, id string) error {
 	return err
 }
 
-func (s *Store) ListPublicCatalog(ctx context.Context, locale string) ([]*CatalogPuzzle, error) {
-	rows, err := s.db.Query(ctx, catalogPuzzleSelect+`
-		WHERE p.status = 'ready' AND p.locale = $1
-		ORDER BY cp.featured DESC, cp.sort_order ASC, cp.created_at DESC`, locale)
+// CatalogFilters holds optional filter parameters for ListPublicCatalog.
+type CatalogFilters struct {
+	CategorySlug string // empty = no filter
+	Difficulty   string // empty = no filter
+}
+
+func (s *Store) ListPublicCatalog(ctx context.Context, locale string, filters CatalogFilters) ([]*CatalogPuzzle, error) {
+	query := catalogPuzzleSelect + `
+		WHERE p.status = 'ready' AND p.locale = $1`
+	args := []any{locale}
+
+	if filters.CategorySlug != "" {
+		args = append(args, filters.CategorySlug)
+		query += fmt.Sprintf(` AND cat.slug = $%d`, len(args))
+	}
+	if filters.Difficulty != "" {
+		args = append(args, filters.Difficulty)
+		query += fmt.Sprintf(` AND p.difficulty = $%d`, len(args))
+	}
+	query += `
+		ORDER BY cp.featured DESC, cp.sort_order ASC, cp.created_at DESC`
+
+	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
