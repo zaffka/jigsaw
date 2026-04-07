@@ -149,6 +149,10 @@ func main() {
 	mux.Handle("PUT /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentUpdateLayer)))
 	mux.Handle("DELETE /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentDeleteLayer)))
 
+	// Parent → moderation
+	mux.Handle("POST /api/parent/puzzles/{id}/submit", parentChain(http.HandlerFunc(h.HandleParentSubmitPuzzle)))
+	mux.Handle("GET /api/parent/notifications", parentChain(http.HandlerFunc(h.HandleParentListNotifications)))
+
 	// Play (best-effort, no auth required)
 	mux.HandleFunc("GET /api/play/completed", h.HandlePlayCompleted)
 	mux.Handle("POST /api/play/{id}/complete", http.HandlerFunc(h.HandlePlayComplete))
