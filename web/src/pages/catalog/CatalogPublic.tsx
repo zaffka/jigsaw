@@ -21,6 +21,15 @@ export function CatalogPublic() {
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
   const [difficulty, setDifficulty] = useState('');
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+
+  // Load completed puzzle IDs for the current child (best-effort)
+  useEffect(() => {
+    if (!sessionStorage.getItem('child_token')) return;
+    api.play.completed()
+      .then((ids) => setCompletedIds(new Set(ids)))
+      .catch(() => {}); // best-effort
+  }, []);
 
   // Load categories once
   useEffect(() => {
@@ -104,13 +113,21 @@ export function CatalogPublic() {
             <button
               key={puzzle.id}
               onClick={() => navigate(`/play/${puzzle.id}`)}
-              class="rounded-xl overflow-hidden shadow border border-gray-200 bg-white hover:shadow-lg active:scale-95 transition-all text-left w-full"
+              class="relative rounded-xl overflow-hidden shadow border border-gray-200 bg-white hover:shadow-lg active:scale-95 transition-all text-left w-full"
             >
               <img
                 src={`/api/media/${puzzle.image_key}`}
                 class="w-full h-44 object-cover sm:h-48"
                 alt={puzzle.title}
               />
+
+              {/* Completed checkmark */}
+              {completedIds.has(puzzle.id) && (
+                <div class="absolute inset-0 bg-green-500/20 flex items-start justify-end p-2">
+                  <span class="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold shadow">✓</span>
+                </div>
+              )}
+
               <div class="px-3 pb-3 pt-2 flex items-center justify-between gap-2">
                 {puzzle.featured && (
                   <span class="text-xs text-yellow-600">★ {t('catalog.featured')}</span>
