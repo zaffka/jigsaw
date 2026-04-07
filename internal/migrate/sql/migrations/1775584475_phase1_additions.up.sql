@@ -46,6 +46,9 @@ CREATE TABLE puzzle_layers (
 
 CREATE INDEX idx_puzzle_layers_puzzle_id ON puzzle_layers(puzzle_id);
 
+-- Drop rewards table replaced by puzzle_layers
+DROP TABLE IF EXISTS rewards;
+
 -- Child sessions (PIN-based login)
 CREATE TABLE child_sessions (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

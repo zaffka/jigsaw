@@ -23,3 +23,5 @@ ALTER TABLE puzzles DROP COLUMN IF EXISTS category_id;
 
 -- Drop categories (seed data removed with table)
 DROP TABLE IF EXISTS categories;
+
+-- Note: rewards table was dropped in up-migration; manual restore needed if rollback required
