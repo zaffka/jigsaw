@@ -125,6 +125,10 @@ func main() {
 	mux.Handle("DELETE /api/admin/catalog/puzzles/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCatalogPuzzle)))
 	mux.Handle("GET /api/admin/users", adminChain(http.HandlerFunc(h.HandleAdminListUsers)))
 
+	mux.Handle("GET /api/admin/moderation", adminChain(http.HandlerFunc(h.HandleAdminListModeration)))
+	mux.Handle("POST /api/admin/moderation/{id}/approve", adminChain(http.HandlerFunc(h.HandleAdminApprove)))
+	mux.Handle("POST /api/admin/moderation/{id}/reject", adminChain(http.HandlerFunc(h.HandleAdminReject)))
+
 	// Child auth
 	mux.HandleFunc("POST /api/children/auth", h.HandleChildAuth)
 
