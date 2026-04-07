@@ -228,9 +228,15 @@ func configFloat(cfg map[string]any, key string, def float64) float64 {
 	return def
 }
 
-// generateTTS is a stub — real implementation in phase 5.
+// generateTTS is a stub — real implementation requires TTS provider integration.
 func (w *Worker) generateTTS(_ context.Context, task *store.Task) error {
 	w.log.Info("generate_tts: stub, skipping", zap.String("task_id", task.ID))
+	return nil
+}
+
+// processVideo is a stub — real implementation requires ffmpeg transcoding.
+func (w *Worker) processVideo(_ context.Context, task *store.Task) error {
+	w.log.Info("process_video: stub, skipping", zap.String("task_id", task.ID))
 	return nil
 }
 

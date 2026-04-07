@@ -97,6 +97,8 @@ func (w *Worker) dispatch(ctx context.Context, task *store.Task) error {
 		return w.processImage(ctx, task)
 	case "generate_tts":
 		return w.generateTTS(ctx, task)
+	case "process_video":
+		return w.processVideo(ctx, task)
 	default:
 		w.log.Warn("unknown task type", zap.String("type", task.Type))
 		return nil // mark completed, don't retry unknown types
