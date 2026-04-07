@@ -90,6 +90,15 @@ func main() {
 		return authMiddleware(middleware.RequireAuth(next))
 	}
 
+	childAuthMiddleware := middleware.ChildAuth(st)
+	childChain := func(next http.Handler) http.Handler {
+		return childAuthMiddleware(middleware.RequireChild(next))
+	}
+	parentChain := func(next http.Handler) http.Handler {
+		return authMiddleware(middleware.RequireAuth(next))
+	}
+	_ = childChain // used below
+
 	mux.HandleFunc("GET /healthz", h.HandleHealthz)
 
 	mux.Handle("POST /api/auth/register", middleware.Locale(http.HandlerFunc(h.HandleRegister)))
@@ -117,6 +126,33 @@ func main() {
 	mux.Handle("GET /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminGetReward)))
 	mux.Handle("POST /api/admin/catalog/puzzles/{id}/reward", adminChain(http.HandlerFunc(h.HandleAdminUpsertReward)))
 	mux.Handle("GET /api/admin/users", adminChain(http.HandlerFunc(h.HandleAdminListUsers)))
+
+	// Child auth
+	mux.HandleFunc("POST /api/children/auth", h.HandleChildAuth)
+
+	// Parent → children
+	mux.Handle("GET /api/parent/children", parentChain(http.HandlerFunc(h.HandleParentListChildren)))
+	mux.Handle("POST /api/parent/children", parentChain(http.HandlerFunc(h.HandleParentCreateChild)))
+	mux.Handle("GET /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentGetChild)))
+	mux.Handle("PUT /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentUpdateChild)))
+	mux.Handle("DELETE /api/parent/children/{id}", parentChain(http.HandlerFunc(h.HandleParentDeleteChild)))
+
+	// Parent → puzzles
+	mux.Handle("GET /api/parent/puzzles", parentChain(http.HandlerFunc(h.HandleParentListPuzzles)))
+	mux.Handle("POST /api/parent/puzzles", parentChain(http.HandlerFunc(h.HandleParentCreatePuzzle)))
+	mux.Handle("GET /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentGetPuzzle)))
+	mux.Handle("PUT /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentUpdatePuzzle)))
+	mux.Handle("DELETE /api/parent/puzzles/{id}", parentChain(http.HandlerFunc(h.HandleParentDeletePuzzle)))
+
+	// Parent → layers
+	mux.Handle("GET /api/parent/puzzles/{id}/layers", parentChain(http.HandlerFunc(h.HandleParentListLayers)))
+	mux.Handle("POST /api/parent/puzzles/{id}/layers", parentChain(http.HandlerFunc(h.HandleParentCreateLayer)))
+	mux.Handle("POST /api/parent/puzzles/{id}/layers/reorder", parentChain(http.HandlerFunc(h.HandleParentReorderLayers)))
+	mux.Handle("PUT /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentUpdateLayer)))
+	mux.Handle("DELETE /api/parent/puzzles/{id}/layers/{lid}", parentChain(http.HandlerFunc(h.HandleParentDeleteLayer)))
+
+	// Play (best-effort, no auth required)
+	mux.Handle("POST /api/play/{id}/complete", http.HandlerFunc(h.HandlePlayComplete))
 
 	httpServer, err := do.Invoke[*http.Server](container)
 	if err != nil {
