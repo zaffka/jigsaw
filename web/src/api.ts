@@ -1,4 +1,4 @@
-import type { User, Category, CatalogPuzzle, GamePuzzle, Reward, ParentPuzzle, PuzzleLayer, Child } from './types';
+import type { User, Category, CatalogPuzzle, GamePuzzle, ParentPuzzle, PuzzleLayer, Child } from './types';
 
 const BASE = '/api';
 
@@ -7,8 +7,9 @@ async function request<T>(
   path: string,
   body?: unknown,
   isForm = false,
+  extraHeaders?: Record<string, string>,
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...extraHeaders };
   let bodyInit: BodyInit | undefined;
 
   if (body !== undefined) {
@@ -46,12 +47,12 @@ async function request<T>(
   return undefined as unknown as T;
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>('GET', path);
+export function get<T>(path: string, childToken?: string): Promise<T> {
+  return request<T>('GET', path, undefined, false, childToken ? { 'X-Child-Token': childToken } : undefined);
 }
 
-export function post<T>(path: string, body: unknown): Promise<T> {
-  return request<T>('POST', path, body);
+export function post<T>(path: string, body: unknown, extraHeaders?: Record<string, string>): Promise<T> {
+  return request<T>('POST', path, body, false, extraHeaders);
 }
 
 export function postForm<T>(path: string, formData: FormData): Promise<T> {
@@ -93,8 +94,15 @@ export const api = {
     get: (id: string) => get<GamePuzzle>(`/catalog/${id}`),
   },
   play: {
-    complete: (id: string): Promise<void> =>
-      post<void>(`/play/${id}/complete`, null).catch((e) => console.warn('play complete failed:', e)),
+    complete: (id: string): Promise<void> => {
+      const token = sessionStorage.getItem('child_token') ?? '';
+      return post<void>(`/play/${id}/complete`, null, token ? { 'X-Child-Token': token } : undefined)
+        .catch((e) => console.warn('play complete failed:', e));
+    },
+    completed: (): Promise<string[]> => {
+      const token = sessionStorage.getItem('child_token') ?? '';
+      return token ? get<string[]>('/play/completed', token) : Promise.resolve([]);
+    },
   },
   parent: {
     listChildren: () => get<Child[]>('/parent/children'),
@@ -135,9 +143,9 @@ export const api = {
       update: (id: string, data: Partial<CatalogPuzzle>) =>
         put<CatalogPuzzle>(`/admin/catalog/puzzles/${id}`, data),
       delete: (id: string) => del(`/admin/catalog/puzzles/${id}`),
-      getReward: (id: string) => get<Reward | null>(`/admin/catalog/puzzles/${id}/reward`),
+      getReward: (id: string) => get<unknown>(`/admin/catalog/puzzles/${id}/reward`),
       upsertReward: (id: string, form: FormData) =>
-        postForm<Reward>(`/admin/catalog/puzzles/${id}/reward`, form),
+        postForm<unknown>(`/admin/catalog/puzzles/${id}/reward`, form),
     },
     users: {
       list: () => get<User[]>('/admin/users'),

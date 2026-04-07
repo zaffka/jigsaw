@@ -30,15 +30,6 @@ export interface CatalogPuzzle {
   difficulty: 'easy' | 'medium' | 'hard' | '';
 }
 
-export interface Reward {
-  id: string;
-  puzzle_id: string;
-  video_key: string | null;
-  word: string | null;
-  tts_key: string | null;
-  animation: string;
-}
-
 export interface PieceBounds {
   x: number;
   y: number;
@@ -57,7 +48,7 @@ export interface PuzzlePiece {
 
 export interface GamePuzzle extends CatalogPuzzle {
   pieces: PuzzlePiece[];
-  reward: Reward | null;
+  layers: PuzzleLayer[];
 }
 
 export interface ParentPuzzle {

@@ -3,9 +3,18 @@ import { useLocation, useParams } from 'wouter';
 import { api } from '../../api';
 import { useT } from '../../i18n';
 import { Spinner } from '../../components/Spinner';
-import type { CatalogPuzzle, Reward } from '../../types';
+import type { CatalogPuzzle } from '../../types';
 
 type AnimationType = 'confetti' | 'fireworks' | 'stars';
+
+interface Reward {
+  id: string;
+  puzzle_id: string;
+  video_key: string | null;
+  word: string | null;
+  tts_key: string | null;
+  animation: string;
+}
 
 export function CatalogEdit() {
   const t = useT();
@@ -51,10 +60,11 @@ export function CatalogEdit() {
     api.admin.catalog
       .getReward(id)
       .then((r) => {
-        if (r) {
-          setReward(r);
-          setWord(r.word ?? '');
-          setAnimation((r.animation as AnimationType) || 'confetti');
+        const reward = r as Reward | null;
+        if (reward) {
+          setReward(reward);
+          setWord(reward.word ?? '');
+          setAnimation((reward.animation as AnimationType) || 'confetti');
         }
       })
       .catch(() => {
@@ -95,7 +105,7 @@ export function CatalogEdit() {
         formData.append('video', videoFile);
       }
       const updated = await api.admin.catalog.upsertReward(id, formData);
-      setReward(updated);
+      setReward(updated as Reward);
       setVideoFile(null);
     } catch (_) {
       setRewardError(t('common.error'));

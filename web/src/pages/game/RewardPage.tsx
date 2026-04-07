@@ -30,7 +30,7 @@ export function RewardPage() {
 
   return (
     <RewardScreen
-      reward={puzzle?.reward ?? null}
+      layers={puzzle?.layers ?? []}
       onReplay={() => navigate(`/play/${id}`)}
     />
   );

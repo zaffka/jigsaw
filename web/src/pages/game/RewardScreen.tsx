@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useLocation } from 'wouter';
-import type { Reward } from '../../types';
+import type { PuzzleLayer } from '../../types';
 
 interface Props {
-  reward: Reward | null;
+  layers: PuzzleLayer[];
   onReplay: () => void;
 }
 
@@ -36,11 +36,13 @@ function makeParticles(w: number): Particle[] {
   }));
 }
 
-export function RewardScreen({ reward, onReplay }: Props) {
+export function RewardScreen({ layers, onReplay }: Props) {
   const [, navigate] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const particles = useRef<Particle[]>([]);
+  const [phase, setPhase] = useState<'confetti' | 'layers' | 'done'>('confetti');
+  const [layerIndex, setLayerIndex] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -99,56 +101,111 @@ export function RewardScreen({ reward, onReplay }: Props) {
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
+  const advance = () => {
+    if (phase === 'confetti') {
+      if (layers.length === 0) {
+        setPhase('done');
+      } else {
+        setPhase('layers');
+        setLayerIndex(0);
+      }
+    } else if (phase === 'layers') {
+      if (layerIndex + 1 < layers.length) {
+        setLayerIndex((i) => i + 1);
+      } else {
+        setPhase('done');
+      }
+    }
+  };
+
+  const currentLayer = phase === 'layers' ? layers[layerIndex] : null;
+
   return (
     <div class="relative flex h-dvh flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-yellow-50 to-orange-50">
-      {/* Confetti canvas */}
-      <canvas
-        ref={canvasRef}
-        class="pointer-events-none absolute inset-0 h-full w-full"
-      />
+      {/* Confetti canvas — always rendered */}
+      <canvas ref={canvasRef} class="pointer-events-none absolute inset-0 h-full w-full" />
 
-      {/* Content */}
-      <div class="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
-        <div class="animate-bounce text-6xl sm:text-8xl">🎉</div>
+      {/* Confetti phase */}
+      {phase === 'confetti' && (
+        <div
+          class="relative z-10 flex h-full w-full cursor-pointer select-none flex-col items-center justify-center gap-6 px-8 text-center"
+          onClick={advance}
+        >
+          <div class="animate-bounce text-6xl sm:text-8xl">🎉</div>
+          <p class="text-3xl font-bold text-gray-700 sm:text-4xl">Молодец! 🌟</p>
+          <p class="mt-4 text-sm text-gray-400">Нажми, чтобы продолжить</p>
+        </div>
+      )}
 
-        {reward?.word && (
+      {/* Word layer */}
+      {phase === 'layers' && currentLayer?.type === 'word' && (
+        <div
+          class="relative z-10 flex h-full w-full cursor-pointer select-none flex-col items-center justify-center gap-6 px-8 text-center"
+          onClick={advance}
+        >
           <div
-            class="rounded-2xl bg-white/90 px-8 py-4 shadow-xl backdrop-blur-sm"
+            class="rounded-2xl bg-white/90 px-8 py-6 shadow-xl backdrop-blur-sm"
             style={{ animation: 'wordPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}
           >
-            <p class="text-5xl font-bold text-gray-800 sm:text-7xl">{reward.word}</p>
+            <p class="text-6xl font-bold text-gray-800 sm:text-8xl">{currentLayer.text}</p>
           </div>
-        )}
+          <p class="text-sm text-gray-400">Нажми, чтобы продолжить</p>
+        </div>
+      )}
 
-        {!reward?.word && (
-          <p class="text-3xl font-bold text-gray-700 sm:text-4xl">Молодец! 🌟</p>
-        )}
+      {/* Audio layer */}
+      {phase === 'layers' && currentLayer?.type === 'audio' && (
+        <div class="relative z-10 flex h-full w-full flex-col items-center justify-center gap-6 px-8 text-center">
+          <div class="cursor-pointer select-none text-8xl" onClick={advance}>🔊</div>
+          {currentLayer.audio_key && (
+            <audio
+              key={currentLayer.id}
+              src={`/api/media/${currentLayer.tts_key ?? currentLayer.audio_key}`}
+              autoPlay
+              onEnded={advance}
+            />
+          )}
+          <p class="text-sm text-gray-400">Нажми, чтобы пропустить</p>
+        </div>
+      )}
 
-        {reward?.video_key && (
-          <video
-            src={`/api/media/${reward.video_key}`}
-            autoPlay
-            playsInline
-            loop
-            class="mt-2 max-h-48 max-w-xs rounded-2xl shadow-lg sm:max-h-64 sm:max-w-sm"
-          />
-        )}
+      {/* Video layer */}
+      {phase === 'layers' && currentLayer?.type === 'video' && (
+        <div class="relative z-10 flex h-full w-full flex-col items-center justify-center gap-4 px-4">
+          {currentLayer.video_key && (
+            <video
+              key={currentLayer.id}
+              src={`/api/media/${currentLayer.video_key}`}
+              autoPlay
+              playsInline
+              controls
+              onEnded={advance}
+              class="max-h-[70vh] max-w-full rounded-2xl shadow-xl"
+            />
+          )}
+          <button onClick={advance} class="text-sm text-gray-400 underline">
+            Пропустить
+          </button>
+        </div>
+      )}
 
-        <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+      {/* Done phase */}
+      {phase === 'done' && (
+        <div class="relative z-10 flex flex-col items-center gap-4">
           <button
             onClick={onReplay}
-            class="rounded-2xl bg-blue-500 px-8 py-3 text-lg font-semibold text-white shadow-lg active:scale-95 hover:bg-blue-600 transition-all"
+            class="rounded-2xl bg-blue-500 px-8 py-3 text-lg font-semibold text-white shadow-lg transition-all hover:bg-blue-600 active:scale-95"
           >
             Ещё раз
           </button>
           <button
             onClick={() => navigate('/catalog')}
-            class="rounded-2xl border-2 border-gray-300 bg-white px-8 py-3 text-lg font-semibold text-gray-700 shadow active:scale-95 hover:bg-gray-50 transition-all"
+            class="rounded-2xl border-2 border-gray-300 bg-white px-8 py-3 text-lg font-semibold text-gray-700 shadow transition-all hover:bg-gray-50 active:scale-95"
           >
             В каталог
           </button>
         </div>
-      </div>
+      )}
 
       <style>{`
         @keyframes wordPop {
