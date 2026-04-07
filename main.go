@@ -76,9 +76,10 @@ func main() {
 
 	st := store.New(pool)
 	h := &handler.Handler{
-		Store: st,
-		S3:    s3Client,
-		Log:   log,
+		Store:        st,
+		S3:           s3Client,
+		Log:          log,
+		CookieSecure: viper.GetBool("COOKIE_SECURE"),
 	}
 
 	authMiddleware := middleware.Auth(st)

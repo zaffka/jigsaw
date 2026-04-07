@@ -9,6 +9,7 @@ import (
 	"github.com/zaffka/jigsaw/internal/middleware"
 	"github.com/zaffka/jigsaw/internal/store"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type registerRequest struct {
@@ -66,7 +67,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setSessionCookie(w, sess.Token, sess.ExpiresAt)
+	setSessionCookie(w, sess.Token, sess.ExpiresAt, h.CookieSecure)
 	writeJSON(w, http.StatusCreated, userResponse{
 		ID:     user.ID,
 		Email:  user.Email,
@@ -84,7 +85,17 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	user, err := h.Store.GetUserByEmail(r.Context(), req.Email)
-	if err != nil || !h.Store.CheckPassword(user.PasswordHash, req.Password) {
+	if err != nil {
+		// dummy bcrypt to equalize timing and prevent user enumeration
+		bcrypt.CompareHashAndPassword([]byte("$2a$10$dummy.hash.for.timing.equalization.only"), []byte(req.Password))
+		writeError(w, http.StatusUnauthorized, "invalid email or password")
+		return
+	}
+	if user.Blocked {
+		writeError(w, http.StatusForbidden, "account blocked")
+		return
+	}
+	if !h.Store.CheckPassword(user.PasswordHash, req.Password) {
 		writeError(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
@@ -96,7 +107,7 @@ func (h *Handler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setSessionCookie(w, sess.Token, sess.ExpiresAt)
+	setSessionCookie(w, sess.Token, sess.ExpiresAt, h.CookieSecure)
 	writeJSON(w, http.StatusOK, userResponse{
 		ID:     user.ID,
 		Email:  user.Email,
@@ -128,12 +139,13 @@ func (h *Handler) HandleMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func setSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
+func setSessionCookie(w http.ResponseWriter, token string, expires time.Time, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    token,
 		Expires:  expires,
 		HttpOnly: true,
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})

@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -60,18 +61,18 @@ func (s *Store) CreateUser(ctx context.Context, email, password, locale string) 
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var u User
 	err := s.db.QueryRow(ctx, `
-		SELECT id, email, password_hash, role, locale, created_at
+		SELECT id, email, password_hash, role, locale, created_at, blocked
 		FROM users WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.Locale, &u.CreatedAt)
+	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.Locale, &u.CreatedAt, &u.Blocked)
 	return &u, err
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id string) (*User, error) {
 	var u User
 	err := s.db.QueryRow(ctx, `
-		SELECT id, email, password_hash, role, locale, created_at
+		SELECT id, email, password_hash, role, locale, created_at, blocked
 		FROM users WHERE id = $1
-	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.Locale, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.Locale, &u.CreatedAt, &u.Blocked)
 	return &u, err
 }
 
@@ -380,5 +381,6 @@ func (s *Store) GetPuzzlePieces(ctx context.Context, puzzleID string) ([]*Puzzle
 }
 
 func isDuplicateEmail(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "unique") && strings.Contains(err.Error(), "email")
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

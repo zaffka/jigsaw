@@ -10,9 +10,10 @@ import (
 )
 
 type Handler struct {
-	Store *store.Store
-	S3    *s3.BucketCli
-	Log   *zap.Logger
+	Store        *store.Store
+	S3           *s3.BucketCli
+	Log          *zap.Logger
+	CookieSecure bool
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
