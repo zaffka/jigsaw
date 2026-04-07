@@ -139,7 +139,7 @@ func (w *Worker) uploadPiece(ctx context.Context, puzzleID string, p slicer.Piec
 		return "", fmt.Errorf("encode piece: %w", err)
 	}
 
-	key := fmt.Sprintf("pieces/%s/%d.png", puzzleID, p.ID)
+	key := fmt.Sprintf("puzzle-pieces/%s/%d.png", puzzleID, p.ID)
 	data := buf.Bytes()
 	if _, err := w.s3.PutObject(ctx, key, bytes.NewReader(data), int64(len(data)),
 		s3.PutObjectOptions{ContentType: "image/png"}); err != nil {
