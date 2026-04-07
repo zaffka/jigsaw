@@ -3,10 +3,12 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 
+	"github.com/zaffka/jigsaw/internal/crypto"
 	"github.com/zaffka/jigsaw/internal/middleware"
 	"github.com/zaffka/jigsaw/internal/store"
 	"github.com/zaffka/jigsaw/pkg/s3"
@@ -66,6 +68,19 @@ func layerToResponse(l *store.PuzzleLayer) layerResponse {
 		VideoKey:  l.VideoKey,
 		CreatedAt: l.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+// encryptIfNeeded returns the data encrypted with h.MediaEncryptionKey if set,
+// otherwise returns data unchanged.
+func (h *Handler) encryptIfNeeded(data []byte) ([]byte, error) {
+	if len(h.MediaEncryptionKey) == 0 {
+		return data, nil
+	}
+	enc, err := crypto.Encrypt(h.MediaEncryptionKey, data)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt: %w", err)
+	}
+	return enc, nil
 }
 
 // HandleParentListPuzzles GET /api/parent/puzzles
@@ -312,6 +327,12 @@ func (h *Handler) HandleParentCreateLayer(w http.ResponseWriter, r *http.Request
 				writeError(w, http.StatusInternalServerError, "failed to read audio")
 				return
 			}
+			data, err = h.encryptIfNeeded(data)
+			if err != nil {
+				h.Log.Error("create layer: encrypt audio", zap.Error(err))
+				writeError(w, http.StatusInternalServerError, "failed to encrypt audio")
+				return
+			}
 			key := "audio/" + newObjectKey() + ext
 			if _, err := h.S3.PutObject(r.Context(), key, bytes.NewReader(data), int64(len(data)), s3.PutObjectOptions{ContentType: ct}); err != nil {
 				h.Log.Error("create layer: upload audio", zap.Error(err))
@@ -333,6 +354,12 @@ func (h *Handler) HandleParentCreateLayer(w http.ResponseWriter, r *http.Request
 			if err != nil {
 				h.Log.Error("create layer: read video", zap.Error(err))
 				writeError(w, http.StatusInternalServerError, "failed to read video")
+				return
+			}
+			data, err = h.encryptIfNeeded(data)
+			if err != nil {
+				h.Log.Error("create layer: encrypt video", zap.Error(err))
+				writeError(w, http.StatusInternalServerError, "failed to encrypt video")
 				return
 			}
 			key := "video/" + newObjectKey() + ".mp4"
@@ -409,6 +436,12 @@ func (h *Handler) HandleParentUpdateLayer(w http.ResponseWriter, r *http.Request
 				writeError(w, http.StatusInternalServerError, "failed to read audio")
 				return
 			}
+			data, err = h.encryptIfNeeded(data)
+			if err != nil {
+				h.Log.Error("update layer: encrypt audio", zap.Error(err))
+				writeError(w, http.StatusInternalServerError, "failed to encrypt audio")
+				return
+			}
 			key := "audio/" + newObjectKey() + ext
 			if _, err := h.S3.PutObject(r.Context(), key, bytes.NewReader(data), int64(len(data)), s3.PutObjectOptions{ContentType: ct}); err != nil {
 				h.Log.Error("update layer: upload audio", zap.Error(err))
@@ -430,6 +463,12 @@ func (h *Handler) HandleParentUpdateLayer(w http.ResponseWriter, r *http.Request
 			if err != nil {
 				h.Log.Error("update layer: read video", zap.Error(err))
 				writeError(w, http.StatusInternalServerError, "failed to read video")
+				return
+			}
+			data, err = h.encryptIfNeeded(data)
+			if err != nil {
+				h.Log.Error("update layer: encrypt video", zap.Error(err))
+				writeError(w, http.StatusInternalServerError, "failed to encrypt video")
 				return
 			}
 			key := "video/" + newObjectKey() + ".mp4"

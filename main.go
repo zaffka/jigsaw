@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +23,18 @@ import (
 )
 
 var serviceVersion = "0.0.0"
+
+// decodeHexKey decodes a hex-encoded AES-256 key (must be 64 hex chars = 32 bytes).
+func decodeHexKey(s string) ([]byte, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("hex decode: %w", err)
+	}
+	if len(b) != 32 {
+		return nil, fmt.Errorf("key must be 32 bytes (64 hex chars), got %d", len(b))
+	}
+	return b, nil
+}
 
 func main() {
 	ctx, stopFn := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -75,11 +89,22 @@ func main() {
 	}
 
 	st := store.New(pool)
+	var mediaEncKey []byte
+	if keyHex := viper.GetString("MEDIA_ENCRYPTION_KEY"); keyHex != "" {
+		decoded, err := decodeHexKey(keyHex)
+		if err != nil {
+			log.Error("invalid MEDIA_ENCRYPTION_KEY", zap.Error(err))
+			return
+		}
+		mediaEncKey = decoded
+	}
+
 	h := &handler.Handler{
-		Store:        st,
-		S3:           s3Client,
-		Log:          log,
-		CookieSecure: viper.GetBool("COOKIE_SECURE"),
+		Store:              st,
+		S3:                 s3Client,
+		Log:                log,
+		CookieSecure:       viper.GetBool("COOKIE_SECURE"),
+		MediaEncryptionKey: mediaEncKey,
 	}
 
 	authMiddleware := middleware.Auth(st)

@@ -10,10 +10,11 @@ import (
 )
 
 type Handler struct {
-	Store        *store.Store
-	S3           *s3.BucketCli
-	Log          *zap.Logger
-	CookieSecure bool
+	Store               *store.Store
+	S3                  *s3.BucketCli
+	Log                 *zap.Logger
+	CookieSecure        bool
+	MediaEncryptionKey  []byte // 32-byte AES-256 key; nil = encryption disabled
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
