@@ -26,6 +26,9 @@ export function PuzzleDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Submit state
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'conflict' | 'error'>('idle');
+
   // Edit title state
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
@@ -69,6 +72,22 @@ export function PuzzleDetail() {
       setLocation('/parent/puzzles');
     } catch (e: unknown) {
       alert((e as Error).message);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!puzzle) return;
+    setSubmitStatus('loading');
+    try {
+      await api.parent.submit(puzzle.id);
+      setSubmitStatus('success');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.includes('409') || msg.toLowerCase().includes('already')) {
+        setSubmitStatus('conflict');
+      } else {
+        setSubmitStatus('error');
+      }
     }
   };
 
@@ -346,6 +365,33 @@ export function PuzzleDetail() {
               Отмена
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Publication section */}
+      <div class="mt-8 border-t pt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">Публикация</h2>
+        <p class="text-sm text-gray-500 mb-4">
+          Подайте пазл на проверку администратором для добавления в публичный каталог.
+        </p>
+        {submitStatus === 'idle' && (
+          <button
+            onClick={handleSubmit}
+            disabled={puzzle.status !== 'ready'}
+            class="rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Подать на публикацию
+          </button>
+        )}
+        {submitStatus === 'loading' && <p class="text-sm text-gray-500">Отправка...</p>}
+        {submitStatus === 'success' && (
+          <p class="text-sm text-green-600 font-medium">✓ Заявка отправлена! Ожидайте проверки.</p>
+        )}
+        {submitStatus === 'conflict' && (
+          <p class="text-sm text-yellow-600 font-medium">Заявка уже отправлена или пазл уже опубликован.</p>
+        )}
+        {submitStatus === 'error' && (
+          <p class="text-sm text-red-600">Не удалось отправить заявку. Попробуйте позже.</p>
         )}
       </div>
 

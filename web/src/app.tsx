@@ -16,6 +16,7 @@ import { PuzzleList } from './pages/parent/PuzzleList';
 import { PuzzleDetail } from './pages/parent/PuzzleDetail';
 import { PuzzleCreate } from './pages/parent/PuzzleCreate';
 import { ChildList } from './pages/parent/ChildList';
+import { NotificationList } from './pages/parent/NotificationList';
 import { ChildSelect } from './pages/ChildSelect';
 
 export function App() {
@@ -69,6 +70,9 @@ export function App() {
         </Route>
         <Route path="/parent/children">
           <ParentLayout><ChildList /></ParentLayout>
+        </Route>
+        <Route path="/parent/notifications">
+          <ParentLayout><NotificationList /></ParentLayout>
         </Route>
         <Route path="/parent">
           <Redirect to="/parent/puzzles" />

@@ -14,6 +14,13 @@ export function ParentLayout({ children }: ParentLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [currentPath] = useLocation();
+  const [notifCount, setNotifCount] = useState(0);
+
+  useEffect(() => {
+    api.parent.listNotifications()
+      .then((notifs) => setNotifCount(notifs.length))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.auth
@@ -44,6 +51,7 @@ export function ParentLayout({ children }: ParentLayoutProps) {
   const navItems = [
     { path: '/parent/puzzles', label: 'Пазлы' },
     { path: '/parent/children', label: 'Дети' },
+    { path: '/parent/notifications', label: 'Уведомления' },
   ];
 
   return (
@@ -61,13 +69,18 @@ export function ParentLayout({ children }: ParentLayoutProps) {
             <a
               key={item.path}
               href={item.path}
-              class={`block rounded-md px-3 py-2 text-sm font-medium ${
+              class={`flex items-center rounded-md px-3 py-2 text-sm font-medium ${
                 currentPath === item.path || currentPath.startsWith(item.path + '/')
                   ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.path === '/parent/notifications' && notifCount > 0 && (
+                <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                  {notifCount}
+                </span>
+              )}
             </a>
           ))}
         </nav>
