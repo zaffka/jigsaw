@@ -99,6 +99,13 @@ func main() {
 
 	mux.HandleFunc("GET /api/media/{path...}", h.HandleMedia)
 
+	mux.HandleFunc("GET /api/categories", h.HandleListCategories)
+
+	mux.Handle("GET /api/admin/categories", adminChain(http.HandlerFunc(h.HandleAdminListCategories)))
+	mux.Handle("POST /api/admin/categories", adminChain(http.HandlerFunc(h.HandleAdminCreateCategory)))
+	mux.Handle("PUT /api/admin/categories/{id}", adminChain(http.HandlerFunc(h.HandleAdminUpdateCategory)))
+	mux.Handle("DELETE /api/admin/categories/{id}", adminChain(http.HandlerFunc(h.HandleAdminDeleteCategory)))
+
 	mux.Handle("GET /api/catalog", authMiddleware(http.HandlerFunc(h.HandleListCatalog)))
 	mux.Handle("GET /api/catalog/{id}", authMiddleware(http.HandlerFunc(h.HandleGetCatalogPuzzle)))
 

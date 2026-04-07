@@ -384,3 +384,81 @@ func isDuplicateEmail(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
+
+// --- Category ---
+
+type Category struct {
+	ID        string
+	Slug      string
+	Name      map[string]string
+	Icon      string
+	SortOrder int
+	CreatedAt time.Time
+}
+
+var ErrConflict = fmt.Errorf("conflict")
+
+func scanCategory(row interface {
+	Scan(...any) error
+}) (*Category, error) {
+	var c Category
+	var nameRaw []byte
+	if err := row.Scan(&c.ID, &c.Slug, &nameRaw, &c.Icon, &c.SortOrder, &c.CreatedAt); err != nil {
+		return nil, err
+	}
+	json.Unmarshal(nameRaw, &c.Name)
+	return &c, nil
+}
+
+func (s *Store) ListCategories(ctx context.Context) ([]*Category, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, slug, name, icon, sort_order, created_at
+		FROM categories ORDER BY sort_order ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var list []*Category
+	for rows.Next() {
+		c, err := scanCategory(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, c)
+	}
+	return list, rows.Err()
+}
+
+func (s *Store) CreateCategory(ctx context.Context, slug string, name map[string]string, icon string, sortOrder int) (*Category, error) {
+	nameJSON, err := json.Marshal(name)
+	if err != nil {
+		return nil, fmt.Errorf("marshal name: %w", err)
+	}
+	return scanCategory(s.db.QueryRow(ctx, `
+		INSERT INTO categories (slug, name, icon, sort_order)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, slug, name, icon, sort_order, created_at
+	`, slug, nameJSON, icon, sortOrder))
+}
+
+func (s *Store) UpdateCategory(ctx context.Context, id string, slug string, name map[string]string, icon string, sortOrder int) (*Category, error) {
+	nameJSON, err := json.Marshal(name)
+	if err != nil {
+		return nil, fmt.Errorf("marshal name: %w", err)
+	}
+	return scanCategory(s.db.QueryRow(ctx, `
+		UPDATE categories SET slug = $2, name = $3, icon = $4, sort_order = $5
+		WHERE id = $1
+		RETURNING id, slug, name, icon, sort_order, created_at
+	`, id, slug, nameJSON, icon, sortOrder))
+}
+
+func (s *Store) DeleteCategory(ctx context.Context, id string) error {
+	var pgErr *pgconn.PgError
+	_, err := s.db.Exec(ctx, `DELETE FROM categories WHERE id = $1`, id)
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return ErrConflict
+	}
+	return err
+}
