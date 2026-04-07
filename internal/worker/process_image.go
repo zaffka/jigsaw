@@ -8,8 +8,6 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 
 	"golang.org/x/image/draw"

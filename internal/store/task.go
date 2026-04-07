@@ -94,7 +94,9 @@ func (s *Store) GetPuzzleByID(ctx context.Context, id string) (*Puzzle, error) {
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(configRaw, &p.Config)
+	if err := json.Unmarshal(configRaw, &p.Config); err != nil {
+		return nil, fmt.Errorf("parse puzzle config: %w", err)
+	}
 	return &p, nil
 }
 
