@@ -16,11 +16,21 @@ func SeedAdmin(ctx context.Context, pool *pgxpool.Pool) error {
 	if email == "" {
 		email = "admin@jigsaw.local"
 	}
+
+	// Check if admin already exists before computing the expensive bcrypt hash.
+	var exists bool
+	err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`, email).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
 	password := os.Getenv("SEED_ADMIN_PASSWORD")
 	if password == "" {
 		password = "changeme"
 	}
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
