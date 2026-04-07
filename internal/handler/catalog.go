@@ -44,9 +44,14 @@ func toInt(v any) int {
 // HandleListCatalog GET /api/catalog
 func (h *Handler) HandleListCatalog(w http.ResponseWriter, r *http.Request) {
 	locale := middleware.LocaleFromContext(r.Context())
+	difficulty := r.URL.Query().Get("difficulty")
+	if difficulty != "" && difficulty != "easy" && difficulty != "medium" && difficulty != "hard" {
+		writeError(w, http.StatusBadRequest, "invalid difficulty value")
+		return
+	}
 	filters := store.CatalogFilters{
 		CategorySlug: r.URL.Query().Get("category"),
-		Difficulty:   r.URL.Query().Get("difficulty"),
+		Difficulty:   difficulty,
 	}
 	list, err := h.Store.ListPublicCatalog(r.Context(), locale, filters)
 	if err != nil {

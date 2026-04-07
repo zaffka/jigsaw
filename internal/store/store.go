@@ -292,7 +292,7 @@ type CatalogFilters struct {
 
 func (s *Store) ListPublicCatalog(ctx context.Context, locale string, filters CatalogFilters) ([]*CatalogPuzzle, error) {
 	query := catalogPuzzleSelect + `
-		WHERE p.status = 'ready' AND p.locale = $1`
+		WHERE p.status = 'ready' AND p.visibility = 'public' AND p.locale = $1`
 	args := []any{locale}
 
 	if filters.CategorySlug != "" {
